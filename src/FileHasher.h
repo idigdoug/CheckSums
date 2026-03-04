@@ -7,15 +7,22 @@ class Hasher;
 
 class FileHasher
 {
-    std::vector<BYTE> m_fileData;
+    struct VirtualFree_delete
+    {
+        void operator()(void* ptr) const noexcept;
+    };
+    
+    std::unique_ptr<BYTE[], VirtualFree_delete> m_fileData;
 
 public:
 
-    HRESULT
-    HashFile(_In_z_ PCWSTR fileName, _Inout_ Hasher* pHasher);
+    FileHasher() noexcept;
 
     HRESULT
-    HashFile(_In_z_ PCWSTR fileName, std::span<Hasher* const> hashers);
+    HashFile(_In_z_ PCWSTR fileName, bool unbufferedIO, _Inout_ Hasher* pHasher);
+
+    HRESULT
+    HashFile(_In_z_ PCWSTR fileName, bool unbufferedIO, std::span<Hasher* const> hashers);
 
     HRESULT
     HashStdin(_Inout_ Hasher* pHasher);
@@ -26,5 +33,5 @@ public:
 private:
 
     HRESULT
-    HashHandle(HANDLE handle, std::span<Hasher* const> hashers);
+    HashHandle(HANDLE handle, bool unbufferedIO, std::span<Hasher* const> hashers);
 };

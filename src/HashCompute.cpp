@@ -126,7 +126,7 @@ HashComputer::Recurse()
             m_path += m_findData.cFileName;
 
             m_options.LogVerbose("verbose : Hashing '%ls'\n", m_path.c_str());
-            auto hr = m_fileHasher.HashFile(m_path.c_str(), m_options.pHasher);
+            auto hr = m_fileHasher.HashFile(m_path.c_str(), m_options.unbufferedIO, m_options.pHasher);
             if (FAILED(hr))
             {
                 Log("error : Could not hash file '%ls' (HR=0x%X).\n", m_path.c_str(), hr);

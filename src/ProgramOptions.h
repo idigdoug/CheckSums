@@ -13,6 +13,7 @@ struct ProgramOptions
     PCWSTR directory = nullptr;
 
     bool verbose = false;
+    bool unbufferedIO = false;
     bool recursive = false; // Compute-only.
     bool silent = false; // Check-only.
     bool warn = false; // Check-only.

@@ -9,29 +9,46 @@
 
 static constexpr ULONG FileDataSize = 256 * 1024;
 
-HRESULT
-FileHasher::HashFile(_In_z_ PCWSTR fileName, _Inout_ Hasher* pHasher)
+void
+FileHasher::VirtualFree_delete::operator()(void* ptr) const noexcept
 {
-    Hasher* const hashers[] = { pHasher };
-    return HashFile(fileName, hashers);
+    VirtualFree(ptr, 0, MEM_RELEASE);
+}
+
+FileHasher::FileHasher() noexcept
+    : m_fileData()
+{
+    return;
 }
 
 HRESULT
-FileHasher::HashFile(_In_z_ PCWSTR fileName, std::span<Hasher* const> hashers)
+FileHasher::HashFile(_In_z_ PCWSTR fileName, bool unbufferedIO, _Inout_ Hasher* pHasher)
 {
+    Hasher* const hashers[] = { pHasher };
+    return HashFile(fileName, unbufferedIO, hashers);
+}
+
+HRESULT
+FileHasher::HashFile(_In_z_ PCWSTR fileName, bool unbufferedIO, std::span<Hasher* const> hashers)
+{
+    auto const flagsAndAttributes =
+        FILE_ATTRIBUTE_NORMAL |
+        FILE_FLAG_SEQUENTIAL_SCAN |
+        (unbufferedIO ? FILE_FLAG_NO_BUFFERING : 0);
+
     auto file = CreateFileUnique(
         fileName,
         GENERIC_READ,
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
         nullptr,
         OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN);
+        flagsAndAttributes);
     if (!file)
     {
         return HRESULT_FROM_WIN32(GetLastError());
     }
 
-    return HashHandle(file.get(), hashers);
+    return HashHandle(file.get(), unbufferedIO, hashers);
 }
 
 HRESULT
@@ -51,14 +68,22 @@ FileHasher::HashStdin(std::span<Hasher* const> hashers)
     }
     else
     {
-        return HashHandle(handle, hashers);
+        return HashHandle(handle, false, hashers);
     }
 }
 
 HRESULT
-FileHasher::HashHandle(HANDLE file, std::span<Hasher* const> hashers)
+FileHasher::HashHandle(HANDLE handle, bool unbufferedIO, std::span<Hasher* const> hashers)
 {
-    m_fileData.resize(FileDataSize);
+    if (!m_fileData)
+    {
+        // Use VirtualAlloc to get a buffer that is (hopefully) suitably aligned for unbuffered I/O.
+        m_fileData.reset(static_cast<BYTE*>(VirtualAlloc(nullptr, FileDataSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE)));
+        if (!m_fileData)
+        {
+            return HRESULT_FROM_WIN32(GetLastError());
+        }
+    }
 
     // After calling Reset, we must call Finalize before returning.
     // (Exceptions don't count.)
@@ -75,9 +100,16 @@ FileHasher::HashHandle(HANDLE file, std::span<Hasher* const> hashers)
         for (;;)
         {
             ULONG bytesRead = 0;
-            if (!ReadFile(file, m_fileData.data() + pos, FileDataSize - pos, &bytesRead, nullptr))
+            if (!ReadFile(handle, m_fileData.get() + pos, FileDataSize - pos, &bytesRead, nullptr))
             {
-                hr = HRESULT_FROM_WIN32(GetLastError());
+                auto const lastError = GetLastError();
+                if (unbufferedIO && lastError == ERROR_INVALID_PARAMETER)
+                {
+                    // Assume we're at EOF with unbuffered I/O.
+                    break;
+                }
+
+                hr = HRESULT_FROM_WIN32(lastError);
                 goto Done;
             }
 
@@ -98,7 +130,7 @@ FileHasher::HashHandle(HANDLE file, std::span<Hasher* const> hashers)
 
         for (auto& hasher : hashers)
         {
-            hasher->Append(m_fileData.data(), pos);
+            hasher->Append(m_fileData.get(), pos);
         }
 
         if (pos != FileDataSize)

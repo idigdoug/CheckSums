@@ -203,7 +203,7 @@ HashChecker::CheckFile(PCWSTR listFileName, FILE* listFile)
         m_path += filename;
 
         m_options.LogVerbose("verbose : Hashing '%ls'\n", filename);
-        if (auto const localHr = m_fileHasher.HashFile(m_path.c_str(), m_options.pHasher);
+        if (auto const localHr = m_fileHasher.HashFile(m_path.c_str(), m_options.unbufferedIO, m_options.pHasher);
             FAILED(localHr))
         {
             hr = localHr;

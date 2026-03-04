@@ -75,6 +75,7 @@ Common options:
     -+             Append to the -o file instead of overwriting it.
     -u             UTF-8-BOM encoding for the -o file (default is ANSI).
     -v             Verbose output on stderr.
+    --unbuffered   Use unbuffered I/O (not recommended, usually slower).
 
 Hash algorithm options, along with a benchmark time (smaller is faster):
 
@@ -113,6 +114,10 @@ wmain(int argc, _In_count_(argc) PWSTR argv[])
             {
                 showHelp = true;
                 goto ArgsDone;
+            }
+            else if (StrEqualIgnoreCase(arg, L"--unbuffered"))
+            {
+                options.unbufferedIO = true;
             }
             else if (arg[0] == L'-' || arg[0] == L'/')
             {
