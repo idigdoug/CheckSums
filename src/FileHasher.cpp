@@ -102,14 +102,7 @@ FileHasher::HashHandle(HANDLE handle, bool unbufferedIO, std::span<Hasher* const
             ULONG bytesRead = 0;
             if (!ReadFile(handle, m_fileData.get() + pos, FileDataSize - pos, &bytesRead, nullptr))
             {
-                auto const lastError = GetLastError();
-                if (unbufferedIO && lastError == ERROR_INVALID_PARAMETER)
-                {
-                    // Assume we're at EOF with unbuffered I/O.
-                    break;
-                }
-
-                hr = HRESULT_FROM_WIN32(lastError);
+                hr = HRESULT_FROM_WIN32(GetLastError());
                 goto Done;
             }
 
@@ -124,6 +117,12 @@ FileHasher::HashHandle(HANDLE handle, bool unbufferedIO, std::span<Hasher* const
             if (pos == FileDataSize)
             {
                 // Buffer full.
+                break;
+            }
+
+            if (unbufferedIO)
+            {
+                // Partial buffer. For unbuffered I/O, this can only be due to EOF.
                 break;
             }
         }
