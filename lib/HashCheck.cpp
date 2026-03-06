@@ -234,7 +234,7 @@ HashChecker::CheckListFile(PCWSTR listFileName, FILE* listFile)
         if (auto const localHr = m_fileHasher.HashFile(m_path.c_str(), m_options.unbuffered, m_options.pHasher);
             FAILED(localHr))
         {
-            if (m_options.ignoreMissing && localHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+            if (m_options.ignoreMissing && localHr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
             {
                 fileCount -= 1;
                 continue;
