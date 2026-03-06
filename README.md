@@ -1,5 +1,5 @@
-﻿[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Build](https://github.com/idigdoug/CheckSums/actions/workflows/release.yml/badge.svg)](https://github.com/idigdoug/CheckSums/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Build](https://github.com/idigdoug/CheckSums/actions/workflows/release.yml/badge.svg)](https://github.com/idigdoug/CheckSums/actions/workflows/build-and-test.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/idigdoug/CheckSums)](https://github.com/idigdoug/CheckSums/releases)
 
 # CheckSums
@@ -25,9 +25,9 @@ multiple checksum algorithms, and optional UTF-8 output.
 
 ## Why CheckSums?
 
-**CheckSums** is a native Windows binary that:
+**CheckSums** is a Windows tool that:
 
-- **Runs natively on Windows** - no extra runtimes, no WSL, no Cygwin.
+- **Runs natively on Windows** - no extra runtimes: no WSL, no Cygwin.
 - **Supports 12 algorithms** in a single tool, from fast non-cryptographic hashes
   ([Murmur3](https://en.wikipedia.org/wiki/MurmurHash),
   [Adler-32](https://en.wikipedia.org/wiki/Adler-32))
@@ -36,7 +36,7 @@ multiple checksum algorithms, and optional UTF-8 output.
   [SHA-512](https://en.wikipedia.org/wiki/SHA-2)).
 - **Recurses into subdirectories** with familiar wildcard patterns.
 - **Handles Unicode filenames** correctly with optional UTF-8 BOM output.
-- **Is extremely fast** - the default Murmur3x64_128 algorithm is ~11x faster than
+- **Fast** - the default Murmur3x64_128 algorithm is ~11x faster than
   MD5 on typical workloads.
 
 ### Sample Output
@@ -106,7 +106,7 @@ Example: `CheckSums Files\*.txt` will compute checksums for all ".txt" files in 
 Normally, the filename pattern is evaluated only in the directory specified by the
 directory part. However, if the `-r` or `--recurse` option is given, the filename
 pattern will be evaluated in every directory at or below the directory specified by
-the directory part.
+the directory part. This behavior is similar to the behavior of `dir /s /b FileSpec`.
 
 Example: `CheckSums -r Files\*.txt` will compute checksums for all ".txt" files in the
 "Files" directory and its subdirectories.
@@ -157,8 +157,8 @@ This tool supports the following algorithms:
 | [Murmur3x64_128](https://en.wikipedia.org/wiki/MurmurHash)                            | Non-cryptographic    | 68 _(default)_                            |
 | [SHA1](https://en.wikipedia.org/wiki/SHA-1)                                           | Cryptographic (weak) | 575                                       |
 | [SHA256](https://en.wikipedia.org/wiki/SHA-2)                                         | Cryptographic        | 232                                       |
-| [SHA384](https://en.wikipedia.org/wiki/SHA-2)                                         | Cryptographic        | 685                                       |
-| [SHA512](https://en.wikipedia.org/wiki/SHA-2)                                         | Cryptographic        | 695                                       |
+| [SHA384](https://en.wikipedia.org/wiki/SHA-2)                                         | Cryptographic        | 695                                       |
+| [SHA512](https://en.wikipedia.org/wiki/SHA-2)                                         | Cryptographic        | 685                                       |
 | [Xor64](https://en.wikipedia.org/wiki/XOR_cipher)                                     | Non-cryptographic    | 23                                        |
 
 > **Note:** Benchmark values are relative times measured on a single machine. They are
