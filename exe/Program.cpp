@@ -2,14 +2,14 @@
 // Licensed under the MIT License.
 
 #include "pch.h"
-#include "ProgramOptions.h"
-#include "Output.h"
-#include "HrException.h"
-#include "HashCompute.h"
-#include "HashCheck.h"
-#include "Hasher.h"
-#include "Utility.h"
-#include "Version.h"
+#include <ProgramOptions.h>
+#include <Output.h>
+#include <HrException.h>
+#include <HashCompute.h>
+#include <HashCheck.h>
+#include <Hasher.h>
+#include <Utility.h>
+#include <Version.h>
 
 static bool
 HandleFileOption(

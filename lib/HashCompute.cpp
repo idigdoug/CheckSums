@@ -2,14 +2,14 @@
 // Licensed under the MIT License.
 
 #include "pch.h"
-#include "HashCompute.h"
+#include <HashCompute.h>
 
-#include "Hasher.h"
-#include "FileHasher.h"
-#include "ProgramOptions.h"
-#include "Output.h"
-#include "SplitPath.h"
-#include "Utility.h"
+#include <Hasher.h>
+#include <FileHasher.h>
+#include <ProgramOptions.h>
+#include <Output.h>
+#include <SplitPath.h>
+#include <Utility.h>
 
 class HashComputer
 {

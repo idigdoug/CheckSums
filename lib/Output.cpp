@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 #include "pch.h"
-#include "Output.h"
+#include <Output.h>
 
 static void
 AssignHex(_Inout_ std::string* pDest, _In_ std::span<BYTE const> bytes)

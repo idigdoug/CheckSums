@@ -2,10 +2,10 @@
 // Licensed under the MIT License.
 
 #include "pch.h"
-#include "FileHasher.h"
+#include <FileHasher.h>
 
-#include "Hasher.h"
-#include "Utility.h"
+#include <Hasher.h>
+#include <Utility.h>
 
 static constexpr ULONG FileDataSize = 256 * 1024;
 

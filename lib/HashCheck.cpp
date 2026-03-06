@@ -2,14 +2,14 @@
 // Licensed under the MIT License.
 
 #include "pch.h"
-#include "HashCheck.h"
+#include <HashCheck.h>
 
-#include "Hasher.h"
-#include "FileHasher.h"
-#include "LineReader.h"
-#include "ProgramOptions.h"
-#include "Output.h"
-#include "Utility.h"
+#include <Hasher.h>
+#include <FileHasher.h>
+#include <LineReader.h>
+#include <ProgramOptions.h>
+#include <Output.h>
+#include <Utility.h>
 
 // Returns 256 if the character is not a valid hex character.
 static unsigned

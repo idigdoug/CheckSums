@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 #include "pch.h"
-#include "Utility.h"
-#include "ProgramOptions.h"
+#include <Utility.h>
+#include <ProgramOptions.h>
 
 void
 fclose_delete::operator()(FILE* file) const noexcept

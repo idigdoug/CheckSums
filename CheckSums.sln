@@ -3,13 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.37012.4
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CheckSums", "src\CheckSums.vcxproj", "{0ACBE2F6-7367-4CDA-AB41-999B74997E46}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CheckSums", "exe\CheckSums.vcxproj", "{61B9D766-D1EE-45FE-B7A9-161AD6006C6B}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
-	ProjectSection(SolutionItems) = preProject
-		.gitignore = .gitignore
-		README.md = README.md
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CheckSumsLib", "lib\CheckSumsLib.vcxproj", "{7751B0F4-2E0F-42EF-8183-2519DFFF07E7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,23 +17,35 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{0ACBE2F6-7367-4CDA-AB41-999B74997E46}.Debug|ARM64.ActiveCfg = Debug|ARM64
-		{0ACBE2F6-7367-4CDA-AB41-999B74997E46}.Debug|ARM64.Build.0 = Debug|ARM64
-		{0ACBE2F6-7367-4CDA-AB41-999B74997E46}.Debug|x64.ActiveCfg = Debug|x64
-		{0ACBE2F6-7367-4CDA-AB41-999B74997E46}.Debug|x64.Build.0 = Debug|x64
-		{0ACBE2F6-7367-4CDA-AB41-999B74997E46}.Debug|x86.ActiveCfg = Debug|Win32
-		{0ACBE2F6-7367-4CDA-AB41-999B74997E46}.Debug|x86.Build.0 = Debug|Win32
-		{0ACBE2F6-7367-4CDA-AB41-999B74997E46}.Release|ARM64.ActiveCfg = Release|ARM64
-		{0ACBE2F6-7367-4CDA-AB41-999B74997E46}.Release|ARM64.Build.0 = Release|ARM64
-		{0ACBE2F6-7367-4CDA-AB41-999B74997E46}.Release|x64.ActiveCfg = Release|x64
-		{0ACBE2F6-7367-4CDA-AB41-999B74997E46}.Release|x64.Build.0 = Release|x64
-		{0ACBE2F6-7367-4CDA-AB41-999B74997E46}.Release|x86.ActiveCfg = Release|Win32
-		{0ACBE2F6-7367-4CDA-AB41-999B74997E46}.Release|x86.Build.0 = Release|Win32
+		{61B9D766-D1EE-45FE-B7A9-161AD6006C6B}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{61B9D766-D1EE-45FE-B7A9-161AD6006C6B}.Debug|ARM64.Build.0 = Debug|ARM64
+		{61B9D766-D1EE-45FE-B7A9-161AD6006C6B}.Debug|x64.ActiveCfg = Debug|x64
+		{61B9D766-D1EE-45FE-B7A9-161AD6006C6B}.Debug|x64.Build.0 = Debug|x64
+		{61B9D766-D1EE-45FE-B7A9-161AD6006C6B}.Debug|x86.ActiveCfg = Debug|Win32
+		{61B9D766-D1EE-45FE-B7A9-161AD6006C6B}.Debug|x86.Build.0 = Debug|Win32
+		{61B9D766-D1EE-45FE-B7A9-161AD6006C6B}.Release|ARM64.ActiveCfg = Release|ARM64
+		{61B9D766-D1EE-45FE-B7A9-161AD6006C6B}.Release|ARM64.Build.0 = Release|ARM64
+		{61B9D766-D1EE-45FE-B7A9-161AD6006C6B}.Release|x64.ActiveCfg = Release|x64
+		{61B9D766-D1EE-45FE-B7A9-161AD6006C6B}.Release|x64.Build.0 = Release|x64
+		{61B9D766-D1EE-45FE-B7A9-161AD6006C6B}.Release|x86.ActiveCfg = Release|Win32
+		{61B9D766-D1EE-45FE-B7A9-161AD6006C6B}.Release|x86.Build.0 = Release|Win32
+		{7751B0F4-2E0F-42EF-8183-2519DFFF07E7}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{7751B0F4-2E0F-42EF-8183-2519DFFF07E7}.Debug|ARM64.Build.0 = Debug|ARM64
+		{7751B0F4-2E0F-42EF-8183-2519DFFF07E7}.Debug|x64.ActiveCfg = Debug|x64
+		{7751B0F4-2E0F-42EF-8183-2519DFFF07E7}.Debug|x64.Build.0 = Debug|x64
+		{7751B0F4-2E0F-42EF-8183-2519DFFF07E7}.Debug|x86.ActiveCfg = Debug|Win32
+		{7751B0F4-2E0F-42EF-8183-2519DFFF07E7}.Debug|x86.Build.0 = Debug|Win32
+		{7751B0F4-2E0F-42EF-8183-2519DFFF07E7}.Release|ARM64.ActiveCfg = Release|ARM64
+		{7751B0F4-2E0F-42EF-8183-2519DFFF07E7}.Release|ARM64.Build.0 = Release|ARM64
+		{7751B0F4-2E0F-42EF-8183-2519DFFF07E7}.Release|x64.ActiveCfg = Release|x64
+		{7751B0F4-2E0F-42EF-8183-2519DFFF07E7}.Release|x64.Build.0 = Release|x64
+		{7751B0F4-2E0F-42EF-8183-2519DFFF07E7}.Release|x86.ActiveCfg = Release|Win32
+		{7751B0F4-2E0F-42EF-8183-2519DFFF07E7}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {DAD9EDA9-5EB7-4704-B4FC-DB7F46748F45}
+		SolutionGuid = {3EB35A63-1670-4E47-AD5D-294795E2EC05}
 	EndGlobalSection
 EndGlobal

@@ -2,10 +2,10 @@
 // Licensed under the MIT License.
 
 #include "pch.h"
-#include "Hasher.h"
+#include <Hasher.h>
 
-#include "HrException.h"
-#include "Utility.h"
+#include <HrException.h>
+#include <Utility.h>
 
 #define FINALIZE_CHECK_HASHSIZE(hashSize, expectedHashSize) ( \
     (hashSize) == (expectedHashSize) \

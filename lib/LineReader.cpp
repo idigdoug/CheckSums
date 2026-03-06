@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 #include "pch.h"
-#include "LineReader.h"
-#include "Utility.h"
+#include <LineReader.h>
+#include <Utility.h>
 
 LineReader::LineReader() noexcept
     : m_filename(L"")
