@@ -8,46 +8,46 @@
 #include "FileHasher.h"
 #include "LineReader.h"
 #include "ProgramOptions.h"
+#include "Output.h"
 #include "Utility.h"
 
 class HashChecker
 {
     ProgramOptions const& m_options;
+    Output& m_output;
     std::wstring m_path;
-    size_t const m_pathBaseSize;
-    LineReader m_lineReader;
+    size_t const m_pathBaseSize; // The part of m_path that came from a -d option.
     FileHasher m_fileHasher;
+    LineReader m_lineReader;
     std::vector<BYTE> m_expectedHashValue;
-    std::string m_expectedHashString;
-    std::string m_actualHashString;
-    size_t m_fileCount;
-    size_t m_mismatchCount;
+    HRESULT m_hr;
 
 public:
 
     explicit
-    HashChecker(ProgramOptions const& options);
+    HashChecker(ProgramOptions const& options, Output& output);
 
     HRESULT
     Run();
 
 private:
 
-    HRESULT
-    CheckFile(PCWSTR listFileName, FILE* listFile);
+    void
+    CheckStdin();
+
+    void
+    CheckListFile(PCWSTR listFileName, FILE* listFile);
 };
 
-HashChecker::HashChecker(ProgramOptions const& options)
+HashChecker::HashChecker(ProgramOptions const& options, Output& output)
     : m_options(options)
+    , m_output(output)
     , m_path(EnsureEmptyOrEndsWithSlash(m_options.directory))
     , m_pathBaseSize(m_path.size())
-    , m_lineReader()
     , m_fileHasher()
+    , m_lineReader()
     , m_expectedHashValue()
-    , m_expectedHashString()
-    , m_actualHashString()
-    , m_fileCount(0)
-    , m_mismatchCount(0)
+    , m_hr(S_OK)
 {
     return;
 }
@@ -55,70 +55,51 @@ HashChecker::HashChecker(ProgramOptions const& options)
 HRESULT
 HashChecker::Run()
 {
-    HRESULT hr = S_OK;
+    m_hr = S_OK;
+
     if (m_options.fileNames.empty())
     {
-        m_options.LogVerbose("verbose : No file names specified. Reading list from stdin.\n");
-        hr = CheckFile(L"stdin", stdin);
+        LogVerbose(m_options, "No file names specified. Reading list from standard input.");
+        CheckStdin();
     }
     else
     {
         for (auto const listFileName : m_options.fileNames)
         {
-            unique_FILE listFile;
+            if (0 == wcscmp(listFileName, L"-"))
             {
-                auto listFileBinary = FopenWithLogging(listFileName, L"rb");
-                if (!listFileBinary)
-                {
-                    hr = HRESULT_FROM_WIN32(GetLastError());
-                    continue;
-                }
-
-                UINT8 bom[3];
-                auto cb = fread(bom, 1, sizeof(bom), listFileBinary.get());
-                PCWSTR mode;
-                if (cb == sizeof(bom) && bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF)
-                {
-                    mode = L"r, ccs=UTF-8";
-                }
-                else if (cb >= 2 && bom[0] == 0xFF && bom[1] == 0xFE)
-                {
-                    mode = L"r, ccs=UTF-16LE";
-                }
-                else
-                {
-                    mode = L"r";
-                }
-
-                listFile = FopenWithLogging(listFileName, mode);
+                CheckStdin();
+            }
+            else
+            {
+                unique_FILE listFile = FopenTextInputWithLogging(listFileName);
                 if (!listFile)
                 {
-                    hr = HRESULT_FROM_WIN32(GetLastError());
+                    m_hr = HRESULT_FROM_WIN32(GetLastError());
+                    assert(FAILED(m_hr));
                     continue;
                 }
-            }
 
-            auto fileResult = CheckFile(listFileName, listFile.get());
-
-            // Results could be S_OK, S_FALSE (mismatch), or failure.
-            // Keep the most-severe result.
-            if (hr == S_OK || FAILED(fileResult))
-            {
-                hr = fileResult;
+                CheckListFile(listFileName, listFile.get());
             }
         }
     }
 
-    return hr;
+    return m_hr;
 }
 
-HRESULT
-HashChecker::CheckFile(PCWSTR listFileName, FILE* listFile)
+void
+HashChecker::CheckStdin()
 {
-    m_fileCount = 0;
-    m_mismatchCount = 0;
+    CheckListFile(L"standard input", stdin);
+}
 
-    HRESULT hr = S_OK;
+void
+HashChecker::CheckListFile(PCWSTR listFileName, FILE* listFile)
+{
+    size_t fileCount = 0;
+    size_t mismatchCount = 0;
+
     m_lineReader.SetFile(listFileName, listFile);
 
     std::wstring_view line;
@@ -149,9 +130,6 @@ HashChecker::CheckFile(PCWSTR listFileName, FILE* listFile)
             // Comment.
             continue;
         }
-
-        // From here on, we either match or we increment the mismatch count.
-        m_fileCount += 1;
 
         m_expectedHashValue.clear();
         for (;;)
@@ -189,12 +167,35 @@ HashChecker::CheckFile(PCWSTR listFileName, FILE* listFile)
             pos += 1;
         }
 
-        if (pos == lineSize)
+        if (oddHashLength)
         {
-            m_options.LogWarn("%ls(%zu) : error : Invalid format (missing filename).\n",
-                listFileName,
-                m_lineReader.LineNumber());
-            goto Mismatch;
+            LogInvalidFormat(m_options, listFileName, m_lineReader.LineNumber(), "odd checksum length");
+
+            if (m_options.strict)
+            {
+                m_hr = E_INVALIDARG;
+            }
+            continue;
+        }
+        else if (m_expectedHashValue.empty())
+        {
+            LogInvalidFormat(m_options, listFileName, m_lineReader.LineNumber(), "missing checksum");
+
+            if (m_options.strict)
+            {
+                m_hr = E_INVALIDARG;
+            }
+            continue;
+        }
+        else if (pos == lineSize)
+        {
+            LogInvalidFormat(m_options, listFileName, m_lineReader.LineNumber(), "missing filename");
+
+            if (m_options.strict)
+            {
+                m_hr = E_INVALIDARG;
+            }
+            continue;
         }
 
         filename = line.data() + pos;
@@ -202,116 +203,72 @@ HashChecker::CheckFile(PCWSTR listFileName, FILE* listFile)
         m_path.resize(m_pathBaseSize);
         m_path += filename;
 
-        m_options.LogVerbose("verbose : Hashing '%ls'\n", filename);
-        if (auto const localHr = m_fileHasher.HashFile(m_path.c_str(), m_options.unbufferedIO, m_options.pHasher);
+        fileCount += 1;
+
+        LogVerbose(m_options, "Hashing '%ls'", filename);
+        if (auto const localHr = m_fileHasher.HashFile(m_path.c_str(), m_options.unbuffered, m_options.pHasher);
             FAILED(localHr))
         {
-            hr = localHr;
-            Log("%ls(%zu) : error : Could not hash file '%ls' (HR=0x%X).\n",
-                listFileName,
-                m_lineReader.LineNumber(),
+            if (m_options.ignoreMissing && localHr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+            {
+                fileCount -= 1;
+                continue;
+            }
+
+            LogError(listFileName, m_lineReader.LineNumber(), "Could not hash file '%ls' (HR=0x%X).",
                 m_path.c_str(),
-                hr);
+                localHr);
+
+            m_hr = localHr;
             goto Mismatch;
         }
 
         actualHashValue = m_options.pHasher->HashBuffer();
 
-        if (oddHashLength)
+        if (!ByteSpansEqual(actualHashValue, m_expectedHashValue))
         {
-            m_options.LogWarn("%ls(%zu) : warning : Invalid format (odd hash length).\n",
-                listFileName,
-                m_lineReader.LineNumber());
             goto Mismatch;
         }
-        else if (m_expectedHashValue.empty())
-        {
-            m_options.LogWarn("%ls(%zu) : warning : Invalid format (missing hash).\n",
-                listFileName,
-                m_lineReader.LineNumber());
-            goto Mismatch;
-        }
-        else
-        {
-            auto const matched = ByteSpansEqual(actualHashValue, m_expectedHashValue);
-            if (!matched)
-            {
-                goto Mismatch;
-            }
 
-            if (!m_options.silent && !m_options.quiet)
-            {
-                AssignHexUpper(&m_actualHashString, actualHashValue);
-                m_options.Output(L"%hs  %ls\n",
-                    m_actualHashString.c_str(),
-                    filename);
-            }
+        if (!m_options.quiet)
+        {
+            m_output.WriteHashOK(filename, actualHashValue);
         }
 
         continue;
 
     Mismatch:
 
-        m_mismatchCount += 1;
-
-        if (!m_options.silent)
-        {
-            if (m_expectedHashValue.empty())
-            {
-                m_expectedHashString = "???";
-            }
-            else
-            {
-                AssignHexUpper(&m_expectedHashString, m_expectedHashValue);
-            }
-
-            if (filename == nullptr)
-            {
-                filename = L"???";
-            }
-
-            if (actualHashValue.empty())
-            {
-                m_actualHashString = "???";
-            }
-            else
-            {
-                AssignHexUpper(&m_actualHashString, actualHashValue);
-            }
-
-            m_options.Output(L"%hs  %ls* FAILED: expected %hs\n",
-                m_actualHashString.c_str(),
-                filename,
-                m_expectedHashString.c_str());
-        }
+        mismatchCount += 1;
+        m_output.WriteHashMismatch(
+            filename,
+            actualHashValue,
+            m_expectedHashValue);
     }
 
-    if (m_mismatchCount != 0)
+    if (mismatchCount != 0)
     {
-        if (!m_options.silent)
+        if (!m_output.StatusCodeOnly())
         {
-            Log("%ls : warning : %zu of %zu checksums did NOT match.\n",
-                listFileName,
-                m_mismatchCount,
-                m_fileCount);
+            LogWarning(listFileName, 0, "%zu of %zu checksums did NOT match.",
+                mismatchCount,
+                fileCount);
         }
 
-        if (SUCCEEDED(hr))
+        if (SUCCEEDED(m_hr))
         {
-            hr = S_FALSE;
+            m_hr = S_FALSE;
         }
     }
 
     if (FAILED(m_lineReader.Result()))
     {
-        hr = m_lineReader.Result();
+        m_hr = m_lineReader.Result();
     }
-
-    return hr;
 }
 
 HRESULT
-HashCheck(ProgramOptions const& options)
+HashCheck(ProgramOptions const& options, Output& output)
 {
-    return HashChecker(options).Run();
+    return HashChecker(options, output).Run();
 }

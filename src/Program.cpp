@@ -3,81 +3,180 @@
 
 #include "pch.h"
 #include "ProgramOptions.h"
+#include "Output.h"
 #include "HrException.h"
 #include "HashCompute.h"
 #include "HashCheck.h"
 #include "Hasher.h"
 #include "Utility.h"
+#include "Version.h"
 
 static bool
 HandleFileOption(
+    PCSTR option,
     int argc,
     _In_count_(argc) PWSTR argv[],
     _Inout_ int* pArgi,
     _Inout_ PCWSTR* pTarget)
 {
-    if (*pArgi + 1 == argc)
+    auto const argIndex = *pArgi;
+
+    if (argIndex + 1 == argc)
     {
-        Log("error : Missing value for option '%ls'.\n", argv[*pArgi]);
+        LogError("Missing value for option %ls.",
+            option);
         return false;
     }
-    else if (argv[*pArgi + 1][0] == 0)
+    
+    auto const value = argv[argIndex + 1];
+    *pArgi = argIndex + 1; // Consume value.
+
+    if (value[0] == 0)
     {
-        Log("error : Missing value for option '%ls' (\"\" not allowed).\n", argv[*pArgi]);
+        LogError("Missing value for option %ls (\"\" not allowed).",
+            option);
         return false;
     }    
     else if (*pTarget)
     {
-        Log("error : Invalid argument %ls '%ls', previously specified as '%ls'.\n",
-            argv[*pArgi],
-            argv[*pArgi + 1],
+        LogError("Repeated option %ls \"%ls\" (originally \"%ls\").",
+            option,
+            value,
             *pTarget);
         return false;
     }
     else
     {
-        *pTarget = argv[*pArgi + 1];
-        *pArgi += 1;
+        *pTarget = value;
         return true;
     }
 }
 
 static void
+WarnInvalidOptionForCheck(bool value, PCSTR option)
+{
+    if (value)
+    {
+        LogWarning("Ignoring option '%hs' (not meaningful when checking hashes).", option);
+    }
+}
+
+
+static void
+WarnInvalidOptionForCompute(bool value, PCSTR option)
+{
+    if (value)
+    {
+        LogWarning("Ignoring option '%hs' (not meaningful when computing hashes).", option);
+    }
+}
+
+static bool
+ErrorInvalidOptionForCompute(bool value, PCSTR option)
+{
+    if (value)
+    {
+        LogWarning("Option '%hs' is not allowed when computing hashes.", option);
+        return false;
+    }
+
+    return true;
+}
+
+static void
 ShowHelp()
 {
+/*
+Options are based on those of the md5sum, sha1sum, etc. utilities.
+
+Not implemented:
+
+  --tag
+  -z, --zero
+
+Common:
+
+  -b, --binary
+  -t, --text
+  --help
+  --version
+
+Check-only:
+
+  -c, --check
+  --ignore-missing
+  --quiet
+  --status
+  --strict
+  -w, --warn
+
+Enhancements:
+
+  -r, --recurse (compute-only)
+  -a <algorithm>
+  -d <directory>
+  -o, --out <file>
+  --append
+  --utf8bom
+  --verbose
+  --unbuffered
+*/
+
     fprintf(stdout, R"(
-CheckSums: Compute or check hash values of files.
+CheckSums: Compute or check checksums of files.
 
-To compute hashes: CheckSums [-r] <FileSpecs...>
+Computing checksums:
 
-    Writes hash values and file names to output, one per line.
-    Each filespec is either a file name or a wildcard pattern (e.g. "*.txt").
-    If no FileSpecs are given, hashes stdin.
-    FileSpecs may not contain slashes. Use -d to specify a base directory.
+  CheckSums <common and compute options...> <FileSpecs...>
 
-    -r             Recursively process files in subdirectories.
+  Writes checksum values and file names to output.
 
-To check hashes: CheckSums <options...> -c <ListFiles...>
+  Each FileSpec is either a file name or a wildcard pattern (e.g. "*.txt").
 
-    Each ListFile should contain lines of the form "<hash> <filename>".
-    For each file that doesn't match the expected hash, write the actual hash
-    value and file name to output, one per line.
+  If no FileSpecs are given or if FileSpec is "-", reads standard input.
 
-    -s             Don't write results. Status code indicates success/failure.
-    -w             Warn about improperly formatted lines in ListFiles.
-    -q             Write output only for failures.
+Compute options:
+
+  -r, --recurse    Recursively process files in subdirectories.
+
+Checking checksums:
+
+  CheckSums -c      <common and check options...> <ListFiles...>
+  CheckSums --check <common and check options...> <ListFiles...>
+
+  If no ListFiles are given or if ListFile is "-", reads standard input.
+
+  Each ListFile should contain lines of the form "<checksum>  <filename>" or
+  "<checksum> *<filename>".
+
+Check options:
+
+  --ignore-missing Don't fail or report status for missing files.
+  --quiet          Don't write output for successfully-verified files.
+  --status         Don't write any output. Status code indicates success.
+  --strict         Error for improperly-formatted lines in ListFiles.
+  -w, --warn       Warn for improperly-formatted lines in ListFiles.
 
 Common options:
 
-    -a <algorithm> Use the specified hash algorithm (e.g. -a sha256).
-    -d <directory> Set the base directory (default is current directory).
-    -o <file>      Write to the specified file instead of stdout.
-    -+             Append to the -o file instead of overwriting it.
-    -u             UTF-8-BOM encoding for the -o file (default is ANSI).
-    -v             Verbose output on stderr.
-    --unbuffered   Use unbuffered I/O (not recommended, usually slower).
+  -a <algorithm>   Use the specified checksum algorithm (e.g. -a sha256).
+  -d <directory>   Set the base directory (default is current directory).
+  -o, --out <file> Write to the specified file instead of stdout.
+  -b, --binary     Use " *" instead of "  " as the separator between checksum
+                   and file name in output.
+  -t, --text       Use "  " instead of " *" as the separator between checksum
+                   and file name in output (default).
+  --append         Append to the -o file instead of overwriting it.
+  --utf8bom        Use UTF-8-BOM encoding for the -o file (default is ANSI).
+  --unbuffered     Read file data using unbuffered I/O (usually slower).
+  --verbose        Verbose output on stderr.
+  --version        Show version information and exit.
+  -h, -?, --help   Show this help message and exit.
 
-Hash algorithm options, along with a benchmark time (smaller is faster):
+  Note that the -b and -t options only affect the output format. Files to be
+  checksummed are always read as binary (no newline normalization).
+
+Checksum algorithm options, along with a benchmark time (smaller is faster):
 
 )");
 
@@ -99,43 +198,123 @@ wmain(int argc, _In_count_(argc) PWSTR argv[])
     try
     {
         ProgramOptions options;
-        std::vector<PCWSTR> fileNamesVec;
-        PCWSTR outputFilename = nullptr;
-        HasherInfo const* hasherInfo = nullptr;
-        bool showHelp = false;
-        bool checkHashes = false;
-        bool utf8Output = false;
-        bool appendOutput = false;
+        OutputOptions outputOptions;
+        bool optionCheck = false;
+        HasherInfo const* optionAlgorithm = nullptr;
+
+        bool optionVersion = false;
+        bool optionHelp = false;
+        std::vector<PCWSTR> optionFiles;
 
         for (int argi = 1; argi != argc; argi += 1)
         {
             auto const arg = argv[argi];
-            if (StrEqualIgnoreCase(arg, L"--help"))
+            if (arg[0] == L'-' && arg[1] == L'-')
             {
-                showHelp = true;
-                goto ArgsDone;
+                // "--flag"
+
+                auto const flag = &arg[2];
+                if (StrEqualIgnoreCase(flag, L"binary"))
+                {
+                    outputOptions.Binary = true;
+                }
+                else if (StrEqualIgnoreCase(flag, L"text"))
+                {
+                    outputOptions.Binary = false;
+                }
+                else if (StrEqualIgnoreCase(flag, L"recurse"))
+                {
+                    options.recurse = true;
+                }
+                else if (StrEqualIgnoreCase(flag, L"check"))
+                {
+                    optionCheck = true;
+                }
+                else if (StrEqualIgnoreCase(flag, L"ignore-missing"))
+                {
+                    options.ignoreMissing = true;
+                }
+                else if (StrEqualIgnoreCase(flag, L"quiet"))
+                {
+                    options.quiet = true;
+                }
+                else if (StrEqualIgnoreCase(flag, L"status"))
+                {
+                    outputOptions.Status = true;
+                }
+                else if (StrEqualIgnoreCase(flag, L"strict"))
+                {
+                    options.strict = true;
+                }
+                else if (StrEqualIgnoreCase(flag, L"warn"))
+                {
+                    options.warn = true;
+                }
+                else if (StrEqualIgnoreCase(flag, L"out"))
+                {
+                    if (!HandleFileOption("--out", argc, argv, &argi, &outputOptions.Out))
+                    {
+                        hr = E_INVALIDARG;
+                    }
+                }
+                else if (StrEqualIgnoreCase(flag, L"append"))
+                {
+                    outputOptions.Append = true;
+                }
+                else if (StrEqualIgnoreCase(flag, L"utf8bom"))
+                {
+                    outputOptions.Utf8Bom = true;
+                }
+                else if (StrEqualIgnoreCase(flag, L"unbuffered"))
+                {
+                    options.unbuffered = true;
+                }
+                else if (StrEqualIgnoreCase(flag, L"verbose"))
+                {
+                    options.verbose = true;
+                }
+                else if (StrEqualIgnoreCase(flag, L"version"))
+                {
+                    optionVersion = true;
+                }
+                else if (StrEqualIgnoreCase(flag, L"help"))
+                {
+                    optionHelp = true;
+                }
+                else
+                {
+                    LogError("Unknown option \"%ls\".", arg);
+                    hr = E_INVALIDARG;
+                }
             }
-            else if (StrEqualIgnoreCase(arg, L"--unbuffered"))
+            else if (
+                (arg[0] == L'/') ||
+                (arg[0] == L'-' && arg[1] != 0))
             {
-                options.unbufferedIO = true;
-            }
-            else if (arg[0] == L'-' || arg[0] == L'/')
-            {
+                // "-abc" or "/abc", but not "-"
                 for (auto argPos = &arg[1]; *argPos != 0; argPos += 1)
                 {
                     switch (*argPos)
                     {
-                    case L'?':
-                    case L'h':
-                        showHelp = true;
-                        goto ArgsDone;
+                    case L'b':
+                        outputOptions.Binary = true;
+                        break;
+                    case L't':
+                        outputOptions.Binary = false;
+                        break;
+                    case L'r':
+                        options.recurse = true;
+                        break;
                     case L'c':
-                        checkHashes = true;
+                        optionCheck = true;
+                        break;
+                    case L'w':
+                        options.warn = true;
                         break;
                     case L'a':
                         if (argi + 1 == argc)
                         {
-                            Log("error : Missing value for option '-a'.\n");
+                            LogError("Missing value for option '-a'.");
                             hr = E_INVALIDARG;
                         }
                         else
@@ -144,108 +323,88 @@ wmain(int argc, _In_count_(argc) PWSTR argv[])
                             auto const argHasherInfo = HasherInfoByName(argv[argi]);
                             if (!argHasherInfo)
                             {
-                                Log("error : Unknown hash algorithm '%ls'.\n", argv[argi]);
+                                LogError("Unknown hash algorithm '%ls'.", argv[argi]);
                                 hr = E_INVALIDARG;
                             }
-                            else if (hasherInfo)
+                            else if (optionAlgorithm)
                             {
-                                Log("error : Invalid argument '-a %ls': hash algorithm '%ls' already selected.\n",
+                                LogError("Invalid argument '-a %ls': hash algorithm '%ls' already selected.",
                                     argv[argi],
-                                    hasherInfo->Name);
+                                    optionAlgorithm->Name);
                                 hr = E_INVALIDARG;
                             }
                             else
                             {
-                                hasherInfo = argHasherInfo;
+                                optionAlgorithm = argHasherInfo;
                             }
                         }
                         break;
-                    case L'o':
-                        if (!HandleFileOption(argc, argv, &argi, &outputFilename))
-                        {
-                            hr = E_INVALIDARG;
-                        }
-                        break;
-                    case L'+':
-                        appendOutput = true;
-                        break;
-                    case L'u':
-                        utf8Output = true;
-                        break;
                     case L'd':
-                        if (!HandleFileOption(argc, argv, &argi, &options.directory))
+                        if (!HandleFileOption("-d", argc, argv, &argi, &options.directory))
                         {
                             hr = E_INVALIDARG;
                         }
                         break;
-                    case L'v':
-                        options.verbose = true;
+                    case L'o':
+                        if (!HandleFileOption("-o", argc, argv, &argi, &outputOptions.Out))
+                        {
+                            hr = E_INVALIDARG;
+                        }
                         break;
-                    case L'r':
-                        options.recursive = true;
-                        break;
-                    case L's':
-                        options.silent = true;
-                        break;
-                    case L'w':
-                        options.warn = true;
-                        break;
-                    case L'q':
-                        options.quiet = true;
+                    case L'h':
+                    case L'?':
+                        optionHelp = true;
                         break;
                     }
                 }
             }
             else if (arg[0] == 0)
             {
-                Log("warning : Ignoring argument \"\".\n");
+                // ""
+                LogWarning("Ignoring argument \"\".");
             }
             else
             {
-                fileNamesVec.push_back(arg);
+                // "filename" or "-"
+                optionFiles.push_back(arg);
             }
         }
 
-    ArgsDone:
-        
-        if (showHelp)
+        if (optionHelp)
         {
             ShowHelp();
             hr = E_ABORT;
             goto Done;
         }
 
+        if (optionVersion)
+        {
+            fprintf(stdout, "CheckSums version %u.%u, build date %hs\n",
+                VERSION_MAJOR,
+                VERSION_MINOR,
+                __DATE__);
+            hr = E_ABORT;
+            goto Done;
+        }
+
         if (FAILED(hr))
         {
-            Log("\nUse '--help' for usage.\n");
+            LogRaw("\nUse '--help' for usage.\n");
+            goto Done;
+        }
+
+        Output output;
+        hr = output.Open(outputOptions);
+        if (FAILED(hr))
+        {
             goto Done;
         }
 
         // Fill in options:
 
-        options.fileNames = fileNamesVec;
+        options.fileNames = optionFiles;
 
-        unique_FILE outputFile;
-        if (!outputFilename)
-        {
-            options.output = stdout;
-        }
-        else
-        {
-            auto const mode = utf8Output
-                ? (appendOutput ? L"a, ccs=UTF-8" : L"w, ccs=UTF-8")
-                : (appendOutput ? L"a" : L"w");
-            outputFile = FopenWithLogging(outputFilename, mode);
-            if (!outputFile)
-            {
-                hr = HRESULT_FROM_WIN32(GetLastError());
-                goto Done;
-            }
-
-            options.output = outputFile.get();
-        }
-
-        auto const hasher = HasherCreateById(hasherInfo ? hasherInfo->Id : HasherId::Default);
+        auto const hasher = HasherCreateById(optionAlgorithm ? optionAlgorithm->Id : HasherId::Default);
         options.pHasher = hasher.get();
 
         if (!options.directory)
@@ -255,45 +414,45 @@ wmain(int argc, _In_count_(argc) PWSTR argv[])
 
         // Perform the requested operation:
 
-        if (checkHashes)
+        if (optionCheck)
         {
-            if (options.recursive)
-            {
-                Log("warning : Ignoring option '-r' (not meaningful when checking hashes).\n");
-            }
+            // Check mode:
 
-            hr = HashCheck(options);
+            WarnInvalidOptionForCheck(options.recurse, "--recurse");
+
+            hr = HashCheck(options, output);
         }
         else
         {
-            if (options.silent)
+            // Compute mode:
+
+            WarnInvalidOptionForCompute(options.ignoreMissing, "--ignore-missing");
+            WarnInvalidOptionForCompute(options.quiet, "--quiet");
+            WarnInvalidOptionForCompute(options.strict, "--strict");
+            WarnInvalidOptionForCompute(options.warn, "--warn");
+
+            if (!ErrorInvalidOptionForCompute(outputOptions.Status, "--status"))
             {
-                Log("error : Option '-s' is not allowed when computing hashes.\n");
                 hr = E_INVALIDARG;
                 goto Done;
             }
 
-            if (options.warn)
-            {
-                Log("warning : Ignoring option '-w' (not meaningful when computing hashes).\n");
-            }
-
-            hr = HashCompute(options);
+            hr = HashCompute(options, output);
         }
     }
     catch (HrException const& ex)
     {
-        Log("error : Exception %hs, HR=0x%X\n", ex.what(), ex.hr);
+        LogError("Exception (%hs), HR=0x%X.", ex.what(), ex.hr);
         hr = ex.hr;
     }
     catch (std::exception const& ex)
     {
-        Log("error : Exception %hs\n", ex.what());
+        LogError("Exception (%hs).", ex.what());
         hr = E_OUTOFMEMORY;
     }
     catch (...)
     {
-        Log("error : Exception (unknown)\n");
+        LogError("Exception (unknown).");
         hr = E_UNEXPECTED;
     }
 

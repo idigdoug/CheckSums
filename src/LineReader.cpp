@@ -44,7 +44,7 @@ LineReader::ReadLine(_Out_ std::wstring_view* pLine)
             auto const doserror = _doserrno;
             if (!feof(m_file))
             {
-                Log("error : Could not read from '%ls' (error %u).\n",
+                LogError("Could not read from '%ls' (error %u).",
                     m_filename,
                     doserror);
                 m_hr = doserror ? HRESULT_FROM_WIN32(doserror) : E_FAIL;

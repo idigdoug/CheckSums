@@ -7,31 +7,25 @@
 #include "Hasher.h"
 #include "FileHasher.h"
 #include "ProgramOptions.h"
+#include "Output.h"
 #include "SplitPath.h"
 #include "Utility.h"
-
-static void
-OutputHash(ProgramOptions const& options, PCSTR hashString, PCWSTR fileName)
-{
-    options.Output(L"%hs  %ls\n", hashString, fileName);
-}
 
 class HashComputer
 {
     ProgramOptions const& m_options;
-    FileHasher m_fileHasher;
+    Output& m_output;
     std::wstring m_path;
-    size_t const m_pathBaseSize;
-
-    HRESULT m_hr;
-    std::string m_hashString;
+    size_t const m_pathBaseSize; // The part of m_path that came from a -d option.
+    FileHasher m_fileHasher;
     WIN32_FIND_DATAW m_findData;
     std::wstring_view m_filePattern;
+    HRESULT m_hr;
 
 public:
 
     explicit
-    HashComputer(ProgramOptions const& options);
+    HashComputer(ProgramOptions const& options, Output& output);
 
     HRESULT
     Run();
@@ -39,18 +33,22 @@ public:
 private:
 
     void
-    Recurse();
+    ComputeStdin();
+
+    // Recursive based on m_path and m_filePattern.
+    void
+    ComputeRecurse();
 };
 
-HashComputer::HashComputer(ProgramOptions const& options)
+HashComputer::HashComputer(ProgramOptions const& options, Output& output)
     : m_options(options)
-    , m_fileHasher()
+    , m_output(output)
     , m_path(EnsureEmptyOrEndsWithSlash(options.directory))
     , m_pathBaseSize(m_path.size())
-    , m_hr(S_OK)
-    , m_hashString()
+    , m_fileHasher()
     , m_findData()
     , m_filePattern()
+    , m_hr(S_OK)
 {
     return;
 }
@@ -58,43 +56,38 @@ HashComputer::HashComputer(ProgramOptions const& options)
 HRESULT
 HashComputer::Run()
 {
+    m_hr = S_OK;
+
     if (m_options.fileNames.empty())
     {
-        m_options.LogVerbose("verbose : No file names specified. Hashing stdin.\n");
-
-        if (m_options.recursive)
-        {
-            Log("warning : '-r' ignored when hashing stdin.\n");
-        }
-
-        auto hr = m_fileHasher.HashStdin(m_options.pHasher);
-        if (FAILED(hr))
-        {
-            Log("error : Could not hash stdin (HR=0x%X).\n", hr);
-            return hr;
-        }
-
-        AssignHexUpper(&m_hashString, m_options.pHasher->HashBuffer());
-        OutputHash(m_options, m_hashString.c_str(), L"-");
+        LogVerbose(m_options, "No file names specified. Reading data from standard input.");
+        ComputeStdin();
     }
     else
     {
-        for (auto const fileName : m_options.fileNames)
+        for (auto const dataFileName : m_options.fileNames)
         {
-            SplitPath<wchar_t> path(fileName);
-
-            m_path.resize(m_pathBaseSize);
-
-            auto const driveDirectory = path.DriveDirectory();
-            m_path += driveDirectory;
-            if (!IsEmptyOrEndsWithSlash(driveDirectory))
+            if (0 == wcscmp(dataFileName, L"-"))
             {
-                m_path.push_back(L'\\');
+                ComputeStdin();
             }
+            else
+            {
+                SplitPath<wchar_t> path(dataFileName);
 
-            auto const filenameExtension = path.FilenameExtension();
-            m_filePattern = filenameExtension.empty() ? std::wstring_view(L"*") : filenameExtension;
-            Recurse();
+                m_path.resize(m_pathBaseSize);
+
+                auto const driveDirectory = path.DriveDirectory();
+                m_path += driveDirectory;
+                if (!IsEmptyOrEndsWithSlash(driveDirectory))
+                {
+                    m_path.push_back(L'\\');
+                }
+
+                auto const filenameExtension = path.FilenameExtension();
+                m_filePattern = filenameExtension.empty() ? std::wstring_view(L"*") : filenameExtension;
+                ComputeRecurse();
+            }
         }
     }
 
@@ -102,7 +95,22 @@ HashComputer::Run()
 }
 
 void
-HashComputer::Recurse()
+HashComputer::ComputeStdin()
+{
+    auto hr = m_fileHasher.HashStdin(m_options.pHasher);
+    if (FAILED(hr))
+    {
+        LogError("Could not read 'standard input' (HR=0x%X).", hr);
+        m_hr = hr;
+    }
+    else
+    {
+        m_output.WriteHash(L"-", m_options.pHasher->HashBuffer());
+    }
+}
+
+void
+HashComputer::ComputeRecurse()
 {
     assert(m_path.empty() || m_path.back() == L'\\' || m_path.back() == L'/');
 
@@ -125,22 +133,21 @@ HashComputer::Recurse()
             m_path.resize(pathSize);
             m_path += m_findData.cFileName;
 
-            m_options.LogVerbose("verbose : Hashing '%ls'\n", m_path.c_str());
-            auto hr = m_fileHasher.HashFile(m_path.c_str(), m_options.unbufferedIO, m_options.pHasher);
+            LogVerbose(m_options, "Hashing '%ls'", m_path.c_str());
+            auto hr = m_fileHasher.HashFile(m_path.c_str(), m_options.unbuffered, m_options.pHasher);
             if (FAILED(hr))
             {
-                Log("error : Could not hash file '%ls' (HR=0x%X).\n", m_path.c_str(), hr);
+                LogError("Could not hash file '%ls' (HR=0x%X).", m_path.c_str(), hr);
                 m_hr = hr;
             }
             else
             {
-                AssignHexUpper(&m_hashString, m_options.pHasher->HashBuffer());
-                OutputHash(m_options, m_hashString.c_str(), m_path.c_str() + m_pathBaseSize);
+                m_output.WriteHash(m_path.c_str() + m_pathBaseSize, m_options.pHasher->HashBuffer());
             }
         } while (FindNextFileW(find.get(), &m_findData));
     }
 
-    if (m_options.recursive)
+    if (m_options.recurse)
     {
         m_path.resize(pathSize);
         m_path += L'*';
@@ -163,7 +170,7 @@ HashComputer::Recurse()
                 m_path.resize(pathSize);
                 m_path += filename;
                 m_path += L'\\';
-                Recurse();
+                ComputeRecurse();
             } while (FindNextFileW(find.get(), &m_findData));
         }
     }
@@ -172,7 +179,7 @@ HashComputer::Recurse()
 }
 
 HRESULT
-HashCompute(ProgramOptions const& options)
+HashCompute(ProgramOptions const& options, Output& output)
 {
-    return HashComputer(options).Run();
+    return HashComputer(options, output).Run();
 }

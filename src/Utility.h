@@ -3,6 +3,8 @@
 
 #pragma once
 
+struct ProgramOptions;
+
 struct fclose_delete
 {
     void operator()(FILE* file) const noexcept;
@@ -15,6 +17,12 @@ FopenWithLogging(
     _In_z_ PCWSTR filename,
     _In_z_ PCWSTR mode,
     int shFlag = _SH_DENYWR) noexcept;
+
+// If file starts with a BOM: _wfopen(filename, "rt, ccs=...", _SH_DENYWR).
+// If file has no BOM: _wfopen(filename, "rt", _SH_DENYWR).
+// On error: logs error, calls SetLastError, returns nullptr.
+unique_FILE
+FopenTextInputWithLogging(_In_z_ PCWSTR filename) noexcept;
 
 struct CloseFile_delete
 {
@@ -60,10 +68,6 @@ ByteSpansEqual(std::span<BYTE const> left, std::span<BYTE const> right) noexcept
 unsigned
 HexCharToValue(wchar_t ch);
 
-// reserve and push_back.
-void 
-AssignHexUpper(_Inout_ std::string* pDest, _In_ std::span<BYTE const> bytes);
-
 bool
 IsEmptyOrEndsWithSlash(std::wstring_view path) noexcept;
 
@@ -72,6 +76,30 @@ IsEmptyOrEndsWithSlash(std::wstring_view path) noexcept;
 std::wstring
 EnsureEmptyOrEndsWithSlash(std::wstring_view directory);
 
-// fprintf(stderr, format, ...).
+// fputs(message, LOG);
 void
-Log(_Printf_format_string_ PCSTR format, ...);
+LogRaw(PCSTR message);
+
+// fprintf(LOG, "filename(lineNumber) : level : Invalid format (" + detail + ")\n").
+void
+LogInvalidFormat(ProgramOptions const& options, _In_z_ PCWSTR listFileName, size_t lineNumber, PCSTR detail);
+
+// fprintf(LOG, "error : " + format + "\n", ...).
+void
+LogError(_Printf_format_string_ PCSTR format, ...);
+
+// fprintf(LOG, "error : " + format + "\n", ...).
+void
+LogError(PCWSTR filename, size_t lineNumber, _Printf_format_string_ PCSTR format, ...);
+
+// fprintf(LOG, "warning : " + format + "\n", ...).
+void
+LogWarning(_Printf_format_string_ PCSTR format, ...);
+
+// fprintf(LOG, "warning : " + format + "\n", ...).
+void
+LogWarning(PCWSTR filename, size_t lineNumber, _Printf_format_string_ PCSTR format, ...);
+
+// fprintf(LOG, "verbose : " + format + "\n", ...).
+void
+LogVerbose(ProgramOptions const& options, _Printf_format_string_ PCSTR format, ...);

@@ -3,8 +3,7 @@
 
 #include "pch.h"
 #include "Utility.h"
-
-static char const HexDigitsUpper[] = "0123456789ABCDEF";
+#include "ProgramOptions.h"
 
 void
 fclose_delete::operator()(FILE* file) const noexcept
@@ -23,12 +22,40 @@ FopenWithLogging(
     if (!file)
     {
         auto const doserror = _doserrno;
-        Log("error : Could not open '%ls' (error %u).\n",
+        LogError("Could not open '%ls' (error %u).",
             filename,
             doserror);
         SetLastError(doserror ? doserror : ERROR_OPEN_FAILED);
     }
     return file;
+}
+
+unique_FILE
+FopenTextInputWithLogging(_In_z_ PCWSTR filename) noexcept
+{
+    auto listFileBinary = FopenWithLogging(filename, L"rb");
+    if (!listFileBinary)
+    {
+        return nullptr;
+    }
+
+    UINT8 bom[3];
+    auto cb = fread(bom, 1, sizeof(bom), listFileBinary.get());
+    PCWSTR mode;
+    if (cb == sizeof(bom) && bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF)
+    {
+        mode = L"rt, ccs=UTF-8";
+    }
+    else if (cb >= 2 && bom[0] == 0xFF && bom[1] == 0xFE)
+    {
+        mode = L"rt, ccs=UTF-16LE";
+    }
+    else
+    {
+        mode = L"rt";
+    }
+
+    return FopenWithLogging(filename, mode);
 }
 
 void
@@ -123,18 +150,6 @@ HexCharToValue(wchar_t ch)
     return hexVal;
 }
 
-void
-AssignHexUpper(_Inout_ std::string* pDest, _In_ std::span<BYTE const> bytes)
-{
-    pDest->clear();
-    pDest->reserve(pDest->size() + bytes.size() * 2);
-    for (auto const byte : bytes)
-    {
-        pDest->push_back(static_cast<wchar_t>(HexDigitsUpper[(byte >> 4) & 0xF]));
-        pDest->push_back(static_cast<wchar_t>(HexDigitsUpper[byte & 0xF]));
-    }
-}
-
 bool
 IsEmptyOrEndsWithSlash(std::wstring_view directory) noexcept
 {
@@ -168,10 +183,105 @@ EnsureEmptyOrEndsWithSlash(std::wstring_view directory)
 }
 
 void
-Log(_Printf_format_string_ PCSTR format, ...)
+LogRaw(PCSTR message)
+{
+    fputs(message, stderr);
+}
+
+static void
+LogImpl(PCWSTR filename, size_t lineNumber, PCSTR level, _Printf_format_string_ PCSTR format, va_list args)
+{
+    if (lineNumber != 0)
+    {
+        fprintf(stderr, "%ls(%zu) : %hs : ",
+            filename,
+            lineNumber,
+            level);
+    }
+    else if (filename != nullptr)
+    {
+        fprintf(stderr, "%ls : %hs : ",
+            filename,
+            level);
+    }
+    else
+    {
+        fprintf(stderr, "%hs : ",
+            level);
+    }
+
+    vfprintf(stderr, format, args);
+    fputc('\n', stderr);
+}
+
+void
+LogInvalidFormat(ProgramOptions const& options, _In_z_ PCWSTR listFileName, size_t lineNumber, PCSTR detail)
+{
+    PCSTR level;
+    if (options.strict)
+    {
+        level = "error";
+    }
+    else if (options.warn)
+    {
+        level = "warning";
+    }
+    else
+    {
+        return;
+    }
+
+    fprintf(stderr, "%ls(%zu) : %hs : Invalid format (%hs).\n",
+        listFileName,
+        lineNumber,
+        level,
+        detail);
+}
+
+void
+LogError(_Printf_format_string_ PCSTR format, ...)
 {
     va_list args;
     va_start(args, format);
-    vfprintf(stderr, format, args);
+    LogImpl(nullptr, 0, "error", format, args);
     va_end(args);
+}
+
+void
+LogError(PCWSTR filename, size_t lineNumber, _Printf_format_string_ PCSTR format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    LogImpl(filename, lineNumber, "error", format, args);
+    va_end(args);
+}
+
+void
+LogWarning(_Printf_format_string_ PCSTR format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    LogImpl(nullptr, 0, "warning", format, args);
+    va_end(args);
+}
+
+void
+LogWarning(PCWSTR filename, size_t lineNumber, _Printf_format_string_ PCSTR format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    LogImpl(filename, lineNumber, "warning", format, args);
+    va_end(args);
+}
+
+void
+LogVerbose(ProgramOptions const& options, _Printf_format_string_ PCSTR format, ...)
+{
+    if (options.verbose)
+    {
+        va_list args;
+        va_start(args, format);
+        LogImpl(nullptr, 0, "verbose", format, args);
+        va_end(args);
+    }
 }

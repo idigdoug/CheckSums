@@ -4,6 +4,7 @@
 #pragma once
 
 struct ProgramOptions;
+class Output;
 
 HRESULT
-HashCompute(ProgramOptions const& options);
+HashCompute(ProgramOptions const& options, Output& output);
