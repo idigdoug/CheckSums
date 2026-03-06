@@ -1,0 +1,30 @@
+name: Build and Test
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+        platform: [x64, x86]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build
+        run: msbuild CheckSums.sln /p:Configuration=${{ matrix.configuration }} /p:Platform=${{ matrix.platform }} /nologo /m
+
+      - name: Test
+        run: >-
+          & "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"
+          "build\${{ matrix.platform }}_${{ matrix.configuration }}\CheckSumsTest.dll"
+          /Platform:${{ matrix.platform }}
