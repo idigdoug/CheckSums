@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [x64, x86, ARM64]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build
+        run: msbuild CheckSums.sln /p:Configuration=Release /p:Platform=${{ matrix.platform }} /nologo /m
+
+      - name: Test
+        if: matrix.platform != 'ARM64'
+        run: >-
+          & "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"
+          "build\${{ matrix.platform }}_Release\CheckSumsTest.dll"
+          /Platform:${{ matrix.platform }}
+
+      - name: Stage artifacts
+        run: |
+          New-Item -ItemType Directory -Path staging -Force
+          Copy-Item "build\${{ matrix.platform }}_Release\CheckSums.exe" staging\
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CheckSums-${{ matrix.platform }}
+          path: staging\CheckSums.exe
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release archives
+        run: |
+          for arch in x64 x86 ARM64; do
+            cd "artifacts/CheckSums-${arch}"
+            zip "../../CheckSums-${arch}.zip" CheckSums.exe
+            cd ../..
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            CheckSums-x64.zip
+            CheckSums-x86.zip
+            CheckSums-ARM64.zip
