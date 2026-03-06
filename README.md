@@ -1,10 +1,10 @@
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+ï»¿[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Build](https://github.com/idigdoug/CheckSums/actions/workflows/release.yml/badge.svg)](https://github.com/idigdoug/CheckSums/actions/workflows/release.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/idigdoug/CheckSums)](https://github.com/idigdoug/CheckSums/releases)
 
 # CheckSums
 
-> A fast, lightweight, native Windows command-line tool for computing and validating file checksums.
+A fast, lightweight, native Windows command-line tool for computing and validating file checksums.
 
 Works a lot like `md5sum` and `sha256sum` but with extra features including directory recursion,
 multiple checksum algorithms, and optional UTF-8 output.
@@ -27,7 +27,7 @@ multiple checksum algorithms, and optional UTF-8 output.
 
 **CheckSums** is a native Windows binary that:
 
-- **Runs natively on Windows** — no extra runtimes, no WSL, no Cygwin.
+- **Runs natively on Windows** - no extra runtimes, no WSL, no Cygwin.
 - **Supports 12 algorithms** in a single tool, from fast non-cryptographic hashes
   ([Murmur3](https://en.wikipedia.org/wiki/MurmurHash),
   [Adler-32](https://en.wikipedia.org/wiki/Adler-32))
@@ -36,7 +36,7 @@ multiple checksum algorithms, and optional UTF-8 output.
   [SHA-512](https://en.wikipedia.org/wiki/SHA-2)).
 - **Recurses into subdirectories** with familiar wildcard patterns.
 - **Handles Unicode filenames** correctly with optional UTF-8 BOM output.
-- **Is extremely fast** — the default Murmur3x64_128 algorithm is ~11× faster than
+- **Is extremely fast** - the default Murmur3x64_128 algorithm is ~11x faster than
   MD5 on typical workloads.
 
 ### Sample Output
@@ -66,7 +66,7 @@ d61765c7  test\pch.cpp* OK
 ### Requirements
 
 - **Windows 10** or later (x86, x64, ARM64).
-- No additional runtime dependencies — the binary is statically linked.
+- No additional runtime dependencies - the binary is statically linked.
 
 ### Download
 
@@ -146,20 +146,20 @@ option. You can append to the output file instead of overwriting it using the
 
 This tool supports the following algorithms:
 
-| Algorithm | Type | Benchmark (relative time, lower = faster) |
-|-----------|------|-------------------------------------------|
-| [Adler32](https://en.wikipedia.org/wiki/Adler-32) | Non-cryptographic | 131 |
-| [Crc32](https://en.wikipedia.org/wiki/Cyclic_redundancy_check) | Non-cryptographic | 779 |
-| [Fnv1a32](https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function) | Non-cryptographic | 442 |
-| [Fnv1a64](https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function) | Non-cryptographic | 425 |
-| [MD4](https://en.wikipedia.org/wiki/MD4) | Cryptographic (weak) | 450 |
-| [MD5](https://en.wikipedia.org/wiki/MD5) | Cryptographic (weak) | 759 |
-| [Murmur3x64_128](https://en.wikipedia.org/wiki/MurmurHash) | Non-cryptographic | 68 *(default)* |
-| [SHA1](https://en.wikipedia.org/wiki/SHA-1) | Cryptographic (weak) | 575 |
-| [SHA256](https://en.wikipedia.org/wiki/SHA-2) | Cryptographic | 232 |
-| [SHA384](https://en.wikipedia.org/wiki/SHA-2) | Cryptographic | 685 |
-| [SHA512](https://en.wikipedia.org/wiki/SHA-2) | Cryptographic | 695 |
-| [Xor64](https://en.wikipedia.org/wiki/XOR_cipher) | Non-cryptographic | 23 |
+| Algorithm                                                                             | Type                 | Benchmark (relative time, lower = faster) |
+| ------------------------------------------------------------------------------------- | -------------------- | ----------------------------------------- |
+| [Adler32](https://en.wikipedia.org/wiki/Adler-32)                                     | Non-cryptographic    | 131                                       |
+| [Crc32](https://en.wikipedia.org/wiki/Cyclic_redundancy_check)                        | Non-cryptographic    | 779                                       |
+| [Fnv1a32](https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function) | Non-cryptographic    | 442                                       |
+| [Fnv1a64](https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function) | Non-cryptographic    | 425                                       |
+| [MD4](https://en.wikipedia.org/wiki/MD4)                                              | Cryptographic (weak) | 450                                       |
+| [MD5](https://en.wikipedia.org/wiki/MD5)                                              | Cryptographic (weak) | 759                                       |
+| [Murmur3x64_128](https://en.wikipedia.org/wiki/MurmurHash)                            | Non-cryptographic    | 68 _(default)_                            |
+| [SHA1](https://en.wikipedia.org/wiki/SHA-1)                                           | Cryptographic (weak) | 575                                       |
+| [SHA256](https://en.wikipedia.org/wiki/SHA-2)                                         | Cryptographic        | 232                                       |
+| [SHA384](https://en.wikipedia.org/wiki/SHA-2)                                         | Cryptographic        | 685                                       |
+| [SHA512](https://en.wikipedia.org/wiki/SHA-2)                                         | Cryptographic        | 695                                       |
+| [Xor64](https://en.wikipedia.org/wiki/XOR_cipher)                                     | Non-cryptographic    | 23                                        |
 
 > **Note:** Benchmark values are relative times measured on a single machine. They are
 > useful for comparing algorithms to each other, not as absolute performance numbers.
