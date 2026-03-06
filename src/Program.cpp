@@ -57,7 +57,7 @@ WarnInvalidOptionForCheck(bool value, PCSTR option)
 {
     if (value)
     {
-        LogWarning("Ignoring option '%hs' (not meaningful when checking hashes).", option);
+        LogWarning("Ignoring option '%hs' (not meaningful when checking).", option);
     }
 }
 
@@ -67,7 +67,7 @@ WarnInvalidOptionForCompute(bool value, PCSTR option)
 {
     if (value)
     {
-        LogWarning("Ignoring option '%hs' (not meaningful when computing hashes).", option);
+        LogWarning("Ignoring option '%hs' (not meaningful when computing).", option);
     }
 }
 
@@ -76,7 +76,7 @@ ErrorInvalidOptionForCompute(bool value, PCSTR option)
 {
     if (value)
     {
-        LogWarning("Option '%hs' is not allowed when computing hashes.", option);
+        LogWarning("Option '%hs' is not allowed when computing.", option);
         return false;
     }
 
@@ -135,6 +135,22 @@ Computing checksums:
 
   If no FileSpecs are given or if FileSpec is "-", reads standard input.
 
+  If the -r or --recurse option is given, FileSpecs will be evaluated
+  recursively with behavior like "dir /s /b FileSpec":
+
+  - If FileSpec has no slashes, the base directory (see the -d option) will be
+    the search starting point. Otherwise, the base directory will be combined
+    with the part of FileSpec before the last slash to form the search
+    starting point.
+  - The rest of FileSpec (the part after the last slash, or all of FileSpec if
+    it has no slashes) will be used as the search pattern. It may contain
+    wildcards '*' and '?'.
+  - The search pattern will be evaluated in every directory at or below the
+    search starting point.
+
+  For example "CheckSums -d C:\Data -r Files\*.txt" will compute checksums for
+  all ".txt" files in "C:\Data\Files" and its subdirectories.
+
 Compute options:
 
   -r, --recurse    Recursively process files in subdirectories.
@@ -156,12 +172,12 @@ Check options:
   --status         Don't write any output. Status code indicates success.
   --strict         Error for improperly-formatted lines in ListFiles.
   -w, --warn       Warn for improperly-formatted lines in ListFiles.
-
+ 
 Common options:
 
   -a <algorithm>   Use the specified checksum algorithm (e.g. -a sha256).
   -d <directory>   Set the base directory (default is current directory).
-  -o, --out <file> Write to the specified file instead of stdout.
+  -o, --out <file> Write output to the specified file instead of stdout.
   -b, --binary     Use " *" instead of "  " as the separator between checksum
                    and file name in output.
   -t, --text       Use "  " instead of " *" as the separator between checksum
@@ -169,12 +185,16 @@ Common options:
   --append         Append to the -o file instead of overwriting it.
   --utf8bom        Use UTF-8-BOM encoding for the -o file (default is ANSI).
   --unbuffered     Read file data using unbuffered I/O (usually slower).
-  --verbose        Verbose output on stderr.
+  --verbose        Verbose logging on stderr.
   --version        Show version information and exit.
   -h, -?, --help   Show this help message and exit.
 
-  Note that the -b and -t options only affect the output format. Files to be
-  checksummed are always read as binary (no newline normalization).
+  The -d directory is used when locating files but is not included in the
+  output. For example, "CheckSums -d C:\Data Files\Test.txt" would read from
+  "C:\Data\Files\Test.txt" but the output would be "<SUM>  Files\Test.txt".
+
+  The -b and -t options only affect the output format. Files to be checksummed
+  are always read as binary (no newline normalization).
 
 Checksum algorithm options, along with a benchmark time (smaller is faster):
 
@@ -328,7 +348,7 @@ wmain(int argc, _In_count_(argc) PWSTR argv[])
                             }
                             else if (optionAlgorithm)
                             {
-                                LogError("Invalid argument '-a %ls': hash algorithm '%ls' already selected.",
+                                LogError("Invalid argument '-a %ls': algorithm '%ls' already selected.",
                                     argv[argi],
                                     optionAlgorithm->Name);
                                 hr = E_INVALIDARG;
@@ -354,6 +374,10 @@ wmain(int argc, _In_count_(argc) PWSTR argv[])
                     case L'h':
                     case L'?':
                         optionHelp = true;
+                        break;
+                    default:
+                        LogError("Unknown option '-%lc'.", *argPos);
+                        hr = E_INVALIDARG;
                         break;
                     }
                 }

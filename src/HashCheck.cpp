@@ -11,6 +11,31 @@
 #include "Output.h"
 #include "Utility.h"
 
+// Returns 256 if the character is not a valid hex character.
+static unsigned
+HexCharToValue(wchar_t ch)
+{
+    unsigned hexVal;
+    unsigned index = ch - 48u;
+    if (index < 10u)
+    {
+        hexVal = index;
+    }
+    else
+    {
+        index = (ch | 32u) - 97u;
+        if (index < 6u)
+        {
+            hexVal = index + 10u;
+        }
+        else
+        {
+            hexVal = 256;
+        }
+    }
+    return hexVal;
+}
+
 class HashChecker
 {
     ProgramOptions const& m_options;

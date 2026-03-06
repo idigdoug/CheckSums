@@ -18,11 +18,13 @@ FopenWithLogging(
     _In_z_ PCWSTR mode,
     int shFlag = _SH_DENYWR) noexcept;
 
-// If file starts with a BOM: _wfopen(filename, "rt, ccs=...", _SH_DENYWR).
-// If file has no BOM: _wfopen(filename, "rt", _SH_DENYWR).
+// If file starts with a BOM: _wfopen(filename, "rt, ccs=...", shFlag).
+// If file has no BOM: _wfopen(filename, "rt", shFlag).
 // On error: logs error, calls SetLastError, returns nullptr.
 unique_FILE
-FopenTextInputWithLogging(_In_z_ PCWSTR filename) noexcept;
+FopenTextInputWithLogging(
+    _In_z_ PCWSTR filename,
+    int shFlag = _SH_DENYWR) noexcept;
 
 struct CloseFile_delete
 {
@@ -63,10 +65,6 @@ StrEqualIgnoreCase(_In_z_ PCWSTR str1, _In_z_ PCWSTR str2) noexcept;
 // memcmp
 bool
 ByteSpansEqual(std::span<BYTE const> left, std::span<BYTE const> right) noexcept;
-
-// Returns 256 if the character is not a valid hex character.
-unsigned
-HexCharToValue(wchar_t ch);
 
 bool
 IsEmptyOrEndsWithSlash(std::wstring_view path) noexcept;

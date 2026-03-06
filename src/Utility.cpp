@@ -31,9 +31,11 @@ FopenWithLogging(
 }
 
 unique_FILE
-FopenTextInputWithLogging(_In_z_ PCWSTR filename) noexcept
+FopenTextInputWithLogging(
+    _In_z_ PCWSTR filename,
+    int shFlag) noexcept
 {
-    auto listFileBinary = FopenWithLogging(filename, L"rb");
+    auto listFileBinary = FopenWithLogging(filename, L"rb", _SH_DENYWR);
     if (!listFileBinary)
     {
         return nullptr;
@@ -55,7 +57,7 @@ FopenTextInputWithLogging(_In_z_ PCWSTR filename) noexcept
         mode = L"rt";
     }
 
-    return FopenWithLogging(filename, mode);
+    return FopenWithLogging(filename, mode, shFlag);
 }
 
 void
@@ -124,30 +126,6 @@ ByteSpansEqual(std::span<BYTE const> left, std::span<BYTE const> right) noexcept
     return
         left.size() == right.size() &&
         0 == memcmp(left.data(), right.data(), left.size());
-}
-
-unsigned
-HexCharToValue(wchar_t ch)
-{
-    unsigned hexVal;
-    unsigned index = ch - 48u;
-    if (index < 10u)
-    {
-        hexVal = index;
-    }
-    else
-    {
-        index = (ch | 32u) - 97u;
-        if (index < 6u)
-        {
-            hexVal = index + 10u;
-        }
-        else
-        {
-            hexVal = 256;
-        }
-    }
-    return hexVal;
 }
 
 bool
