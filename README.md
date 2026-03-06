@@ -4,17 +4,18 @@
 
 # CheckSums
 
-> A fast, lightweight, native Windows command-line tool for computing and validating file checksums — no WSL or Cygwin required.
+> A fast, lightweight, native Windows command-line tool for computing and validating file checksums.
 
-Works a lot like `md5sum` and `sha256sum` but with a few extra features.
+Works a lot like `md5sum` and `sha256sum` but with extra features including directory recursion,
+multiple checksum algorithms, and optional UTF-8 output.
 
 ## Table of Contents
 
 - [Why CheckSums?](#why-checksums)
-- [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Recursion](#recursion)
+- [Base Directory](#base-directory)
 - [Output File](#output-file)
 - [Checksum Algorithms](#checksum-algorithms)
 - [Examples](#examples)
@@ -24,8 +25,7 @@ Works a lot like `md5sum` and `sha256sum` but with a few extra features.
 
 ## Why CheckSums?
 
-If you need a checksum tool on Windows, you typically have to install Cygwin, use WSL,
-or rely on PowerShell cmdlets. **CheckSums** is a single, native Windows binary that:
+**CheckSums** is a native Windows binary that:
 
 - **Runs natively on Windows** — no extra runtimes, no WSL, no Cygwin.
 - **Supports 12 algorithms** in a single tool, from fast non-cryptographic hashes
@@ -35,8 +35,8 @@ or rely on PowerShell cmdlets. **CheckSums** is a single, native Windows binary 
   ([SHA-256](https://en.wikipedia.org/wiki/SHA-2),
   [SHA-512](https://en.wikipedia.org/wiki/SHA-2)).
 - **Recurses into subdirectories** with familiar wildcard patterns.
-- **Handles Unicode filenames** correctly, with optional UTF-8 BOM output.
-- **Is extremely fast** — the default Murmur3x64_128 algorithm is ~10× faster than
+- **Handles Unicode filenames** correctly with optional UTF-8 BOM output.
+- **Is extremely fast** — the default Murmur3x64_128 algorithm is ~11× faster than
   MD5 on typical workloads.
 
 ### Sample Output
@@ -61,18 +61,11 @@ d61765c7  test\pch.cpp* OK
 1c913623  test\pch.h* OK
 ```
 
-## Features
-
-- Supports many checksum algorithms (MD5, SHA256, CRC32, and more).
-- Can optionally recurse into subdirectories.
-- Can optionally write results to a file instead of stdout.
-- Can optionally encode output file as UTF-8 with BOM.
-
 ## Installation
 
 ### Requirements
 
-- **Windows 10** or later (x64).
+- **Windows 10** or later (x86, x64, ARM64).
 - No additional runtime dependencies — the binary is statically linked.
 
 ### Download
@@ -91,13 +84,13 @@ Requirements: Visual Studio 2022 with the C++ Desktop workload (C++20).
 ## Quick Start
 
 ```
-# Compute SHA256 checksums for all files in the current directory
+# Compute SHA256 checksums for all files in the current directory:
 CheckSums -a SHA256 *
 
-# Compute MD5 checksums for all .txt files in the "Files" directory and subdirectories
-CheckSums -a MD5 -r Files\*.txt
+# Record MD5 checksums for all .txt files in the "Files" directory and subdirectories:
+CheckSums -a MD5 -r Files\*.txt > ..\checksums.md5
 
-# Validate checksums in a file against the corresponding files
+# Validate recorded checksums against the corresponding files:
 CheckSums -a MD5 -c ..\checksums.md5
 ```
 
@@ -117,6 +110,26 @@ the directory part.
 
 Example: `CheckSums -r Files\*.txt` will compute checksums for all ".txt" files in the
 "Files" directory and its subdirectories.
+
+## Base Directory
+
+By default, files to be checksummed are located relative to the current directory.
+You can specify a different base directory using the `-d` or `--dir` option. The
+output will list file paths relative to the base directory.
+
+Setting the base directory is not the same as specifying the directory in the FileSpec.
+Directory components in the FileSpec are included in the output, while the base directory
+is not. For example:
+
+```
+> CheckSums E:\repos\CheckSums\exe\pch.cpp
+b2e755768937966436f669ad8e4411ce  E:\repos\CheckSums\exe\pch.cpp
+
+> CheckSums -d E:\repos\CheckSums exe\pch.cpp
+b2e755768937966436f669ad8e4411ce  exe\pch.cpp
+```
+
+The base directory is used when computing checksums and when validating checksums.
 
 ## Output File
 
@@ -156,7 +169,11 @@ is very fast and has good distribution properties. It is suitable for detecting 
 to files.
 
 For security-sensitive applications, use a cryptographic hash algorithm such as SHA256
-or SHA512 via the `-a` option.
+or SHA512, e.g. `-a sha256`.
+
+> **Note:** The Xor64 algorithm is extremely fast but is very weak. It is not recommended
+> for general use but may be useful for benchmarking, i.e. for measuring I/O overhead
+> against time spent computing the actual checksum.
 
 ## Examples
 
@@ -180,7 +197,6 @@ relative to `c:\MyDir`.
 `CheckSums -a SHA256 -d c:\MyDir -c MyDir.sha256`
 
 This will validate the checksums in `MyDir.sha256` against the files in `c:\MyDir\...`.
-
 
 ## Usage
 
