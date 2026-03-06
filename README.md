@@ -30,27 +30,35 @@ or rely on PowerShell cmdlets. **CheckSums** is a single, native Windows binary 
 - **Runs natively on Windows** — no extra runtimes, no WSL, no Cygwin.
 - **Supports 12 algorithms** in a single tool, from fast non-cryptographic hashes
   ([Murmur3](https://en.wikipedia.org/wiki/MurmurHash),
-  [FNV-1a](https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function))
+  [Adler-32](https://en.wikipedia.org/wiki/Adler-32))
   to cryptographic standards
   ([SHA-256](https://en.wikipedia.org/wiki/SHA-2),
   [SHA-512](https://en.wikipedia.org/wiki/SHA-2)).
 - **Recurses into subdirectories** with familiar wildcard patterns.
 - **Handles Unicode filenames** correctly, with optional UTF-8 BOM output.
 - **Is extremely fast** — the default Murmur3x64_128 algorithm is ~10× faster than
-  SHA-256 on typical workloads.
+  MD5 on typical workloads.
 
 ### Sample Output
 
 ```
-> CheckSums -a SHA256 -r *.cs
+> CheckSums.exe -a crc32 -r pch.*
+d61765c7  exe\pch.cpp
+e208b879  exe\pch.h
+d61765c7  lib\pch.cpp
+e208b879  lib\pch.h
+d61765c7  test\pch.cpp
+1c913623  test\pch.h
 
-SHA256                              Programs\Main.cs
-SHA256                              Programs\Utils.cs
-SHA256                              Libraries\Lib.cs
+> CheckSums.exe -a crc32 -r pch.* -o checksums.crc32
 
-> CheckSums -a MD5 -c ..\checksums.md5
-
-MD5    (stdin)= d41d8cd98f00b204e9800998ecf8427e
+> CheckSums.exe -a crc32 -c checksums.crc32
+d61765c7  exe\pch.cpp* OK
+e208b879  exe\pch.h* OK
+d61765c7  lib\pch.cpp* OK
+e208b879  lib\pch.h* OK
+d61765c7  test\pch.cpp* OK
+1c913623  test\pch.h* OK
 ```
 
 ## Features
@@ -90,7 +98,7 @@ CheckSums -a SHA256 *
 CheckSums -a MD5 -r Files\*.txt
 
 # Validate checksums in a file against the corresponding files
-CheckSums -c ..\checksums.md5
+CheckSums -a MD5 -c ..\checksums.md5
 ```
 
 ## Recursion
