@@ -1,13 +1,16 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Build](https://github.com/idigdoug/CheckSums/actions/workflows/release.yml/badge.svg)](https://github.com/idigdoug/CheckSums/actions/workflows/release.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/idigdoug/CheckSums)](https://github.com/idigdoug/CheckSums/releases)
 
 # CheckSums
 
-A fast, lightweight Windows command-line tool for computing and validating file checksums.
+> A fast, lightweight, native Windows command-line tool for computing and validating file checksums — no WSL or Cygwin required.
+
 Works a lot like `md5sum` and `sha256sum` but with a few extra features.
 
 ## Table of Contents
 
+- [Why CheckSums?](#why-checksums)
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
@@ -15,8 +18,40 @@ Works a lot like `md5sum` and `sha256sum` but with a few extra features.
 - [Output File](#output-file)
 - [Checksum Algorithms](#checksum-algorithms)
 - [Examples](#examples)
-- [Full Usage](#full-usage)
+- [Usage](#usage)
+- [Contributing](#contributing)
 - [License](#license)
+
+## Why CheckSums?
+
+If you need a checksum tool on Windows, you typically have to install Cygwin, use WSL,
+or rely on PowerShell cmdlets. **CheckSums** is a single, native Windows binary that:
+
+- **Runs natively on Windows** — no extra runtimes, no WSL, no Cygwin.
+- **Supports 12 algorithms** in a single tool, from fast non-cryptographic hashes
+  ([Murmur3](https://en.wikipedia.org/wiki/MurmurHash),
+  [FNV-1a](https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function))
+  to cryptographic standards
+  ([SHA-256](https://en.wikipedia.org/wiki/SHA-2),
+  [SHA-512](https://en.wikipedia.org/wiki/SHA-2)).
+- **Recurses into subdirectories** with familiar wildcard patterns.
+- **Handles Unicode filenames** correctly, with optional UTF-8 BOM output.
+- **Is extremely fast** — the default Murmur3x64_128 algorithm is ~10× faster than
+  SHA-256 on typical workloads.
+
+### Sample Output
+
+```
+> CheckSums -a SHA256 -r *.cs
+
+SHA256                              Programs\Main.cs
+SHA256                              Programs\Utils.cs
+SHA256                              Libraries\Lib.cs
+
+> CheckSums -a MD5 -c ..\checksums.md5
+
+MD5    (stdin)= d41d8cd98f00b204e9800998ecf8427e
+```
 
 ## Features
 
@@ -26,6 +61,11 @@ Works a lot like `md5sum` and `sha256sum` but with a few extra features.
 - Can optionally encode output file as UTF-8 with BOM.
 
 ## Installation
+
+### Requirements
+
+- **Windows 10** or later (x64).
+- No additional runtime dependencies — the binary is statically linked.
 
 ### Download
 
@@ -85,20 +125,23 @@ option. You can append to the output file instead of overwriting it using the
 
 This tool supports the following algorithms:
 
-| Algorithm       | Benchmark (lower = faster) |
-|-----------------|----------------------------|
-| Adler32         | 131                        |
-| Crc32           | 779                        |
-| Fnv1a32         | 442                        |
-| Fnv1a64         | 425                        |
-| MD4             | 450                        |
-| MD5             | 759                        |
-| Murmur3x64_128  | 68 *(default)*             |
-| SHA1            | 575                        |
-| SHA256          | 232                        |
-| SHA384          | 695                        |
-| SHA512          | 685                        |
-| Xor64           | 23                         |
+| Algorithm | Type | Benchmark (relative time, lower = faster) |
+|-----------|------|-------------------------------------------|
+| [Adler32](https://en.wikipedia.org/wiki/Adler-32) | Non-cryptographic | 131 |
+| [Crc32](https://en.wikipedia.org/wiki/Cyclic_redundancy_check) | Non-cryptographic | 779 |
+| [Fnv1a32](https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function) | Non-cryptographic | 442 |
+| [Fnv1a64](https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function) | Non-cryptographic | 425 |
+| [MD4](https://en.wikipedia.org/wiki/MD4) | Cryptographic (weak) | 450 |
+| [MD5](https://en.wikipedia.org/wiki/MD5) | Cryptographic (weak) | 759 |
+| [Murmur3x64_128](https://en.wikipedia.org/wiki/MurmurHash) | Non-cryptographic | 68 *(default)* |
+| [SHA1](https://en.wikipedia.org/wiki/SHA-1) | Cryptographic (weak) | 575 |
+| [SHA256](https://en.wikipedia.org/wiki/SHA-2) | Cryptographic | 232 |
+| [SHA384](https://en.wikipedia.org/wiki/SHA-2) | Cryptographic | 685 |
+| [SHA512](https://en.wikipedia.org/wiki/SHA-2) | Cryptographic | 695 |
+| [Xor64](https://en.wikipedia.org/wiki/XOR_cipher) | Non-cryptographic | 23 |
+
+> **Note:** Benchmark values are relative times measured on a single machine. They are
+> useful for comparing algorithms to each other, not as absolute performance numbers.
 
 The default algorithm is **Murmur3x64_128**. This is not a cryptographic hash, but it
 is very fast and has good distribution properties. It is suitable for detecting changes
@@ -129,6 +172,7 @@ relative to `c:\MyDir`.
 `CheckSums -a SHA256 -d c:\MyDir -c MyDir.sha256`
 
 This will validate the checksums in `MyDir.sha256` against the files in `c:\MyDir\...`.
+
 
 ## Usage
 
@@ -221,6 +265,13 @@ Checksum algorithm options, along with a benchmark time (smaller is faster):
     -a SHA512           685
     -a Xor64             23
 ```
+
+## Contributing
+
+Contributions are welcome! Please
+[open an issue](https://github.com/idigdoug/CheckSums/issues) to report bugs or
+suggest features, or submit a
+[pull request](https://github.com/idigdoug/CheckSums/pulls).
 
 ## License
 
