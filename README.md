@@ -1,33 +1,137 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Build](https://github.com/idigdoug/CheckSums/actions/workflows/release.yml/badge.svg)](https://github.com/idigdoug/CheckSums/actions/workflows/build-and-test.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/idigdoug/CheckSums)](https://github.com/idigdoug/CheckSums/releases)
 
 # CheckSums
 
-Create or validate file checksums on Windows.
-Works a lot like `md5sum` and `sha256sum` but with a few extra features:
+A fast, lightweight, native Windows command-line tool for computing and validating file checksums.
 
-- Can optionally recurse into subdirectories.
-- Can optionally write results to a file instead of stdout.
-- Can optionally encode output file as UTF-8 with BOM.
-- Supports many different checksum algorithms (see below).
+Works a lot like `md5sum` and `sha256sum` but with extra features including directory recursion,
+multiple checksum algorithms, and optional UTF-8 output.
+
+## Table of Contents
+
+- [Why CheckSums?](#why-checksums)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Recursion](#recursion)
+- [Base Directory](#base-directory)
+- [Output File](#output-file)
+- [Checksum Algorithms](#checksum-algorithms)
+- [Examples](#examples)
+- [Usage](#usage)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Why CheckSums?
+
+**CheckSums** is a Windows tool that:
+
+- **Runs natively on Windows** - no extra runtimes: no WSL, no Cygwin.
+- **Supports 12 algorithms** in a single tool, from fast non-cryptographic hashes
+  ([Murmur3](https://en.wikipedia.org/wiki/MurmurHash),
+  [Adler-32](https://en.wikipedia.org/wiki/Adler-32))
+  to cryptographic standards
+  ([SHA-256](https://en.wikipedia.org/wiki/SHA-2),
+  [SHA-512](https://en.wikipedia.org/wiki/SHA-2)).
+- **Recurses into subdirectories** with familiar wildcard patterns.
+- **Handles Unicode filenames** correctly with optional UTF-8 BOM output.
+- **Fast** - the default Murmur3x64_128 algorithm is ~11x faster than
+  MD5 on typical workloads.
+
+### Sample Output
+
+```
+> CheckSums.exe -a crc32 -r pch.*
+d61765c7  exe\pch.cpp
+e208b879  exe\pch.h
+d61765c7  lib\pch.cpp
+e208b879  lib\pch.h
+d61765c7  test\pch.cpp
+1c913623  test\pch.h
+
+> CheckSums.exe -a crc32 -r pch.* -o checksums.crc32
+
+> CheckSums.exe -a crc32 -c checksums.crc32
+d61765c7  exe\pch.cpp* OK
+e208b879  exe\pch.h* OK
+d61765c7  lib\pch.cpp* OK
+e208b879  lib\pch.h* OK
+d61765c7  test\pch.cpp* OK
+1c913623  test\pch.h* OK
+```
+
+## Installation
+
+### Requirements
+
+- **Windows 10** or later (x86, x64, ARM64).
+- No additional runtime dependencies - the binary is statically linked.
+
+### Download
+
+Download the latest prebuilt binary from the
+[Releases](https://github.com/idigdoug/CheckSums/releases) page.
+
+### Build from Source
+
+Requirements: Visual Studio 2022 with the C++ Desktop workload (C++20).
+
+1. Clone the repository: `git clone https://github.com/idigdoug/CheckSums.git`
+2. Open `CheckSums.sln` in Visual Studio.
+3. Build the solution (Release, x64).
+
+## Quick Start
+
+```
+# Compute SHA256 checksums for all files in the current directory:
+CheckSums -a SHA256 *
+
+# Record MD5 checksums for all .txt files in the "Files" directory and subdirectories:
+CheckSums -a MD5 -r Files\*.txt > ..\checksums.md5
+
+# Validate recorded checksums against the corresponding files:
+CheckSums -a MD5 -c ..\checksums.md5
+```
 
 ## Recursion
 
 When computing checksums, this tool accepts FileSpecs that specify the files to be
 processed. The FileSpec is split into a (potentially empty) directory part and a
-filename pattern part. The filename pattern may contain wildcards '*' and '?'.
+filename pattern part. The filename pattern may contain wildcards `*` and `?`.
 
-Example: `CheckSums Files\*.txt` will compute checksums for all ".txt" files the
+Example: `CheckSums Files\*.txt` will compute checksums for all ".txt" files in the
 "Files" directory.
 
 Normally, the filename pattern is evaluated only in the directory specified by the
 directory part. However, if the `-r` or `--recurse` option is given, the filename
 pattern will be evaluated in every directory at or below the directory specified by
-the directory part.
+the directory part. This behavior is similar to the behavior of `dir /s /b FileSpec`.
 
-Example: `CheckSums -r Files\*.txt` will compute checksums for all ".txt" files the
+Example: `CheckSums -r Files\*.txt` will compute checksums for all ".txt" files in the
 "Files" directory and its subdirectories.
 
-## Output file
+## Base Directory
+
+By default, files to be checksummed are located relative to the current directory.
+You can specify a different base directory using the `-d` or `--dir` option. The
+output will list file paths relative to the base directory.
+
+Setting the base directory is not the same as specifying the directory in the FileSpec.
+Directory components in the FileSpec are included in the output, while the base directory
+is not. For example:
+
+```
+> CheckSums E:\repos\CheckSums\exe\pch.cpp
+b2e755768937966436f669ad8e4411ce  E:\repos\CheckSums\exe\pch.cpp
+
+> CheckSums -d E:\repos\CheckSums exe\pch.cpp
+b2e755768937966436f669ad8e4411ce  exe\pch.cpp
+```
+
+The base directory is used when computing checksums and when validating checksums.
+
+## Output File
 
 By default, this tool writes results to standard output. However, you can specify an
 output file using the `-o` or `--out` option.
@@ -38,28 +142,38 @@ When using `-o` or `--out`, you can save the results as UTF-8 using the `--utf8b
 option. You can append to the output file instead of overwriting it using the
 `--append` option.
 
-## Checksum algorithms
+## Checksum Algorithms
 
 This tool supports the following algorithms:
 
-- Adler32
-- Crc32
-- Fnv1a32
-- Fnv1a64
-- MD4
-- MD5
-- Murmur3x64_128
-- SHA1
-- SHA256
-- SHA384
-- SHA512
-- Xor64
+| Algorithm                                                                             | Type                 | Benchmark (relative time, lower = faster) |
+| ------------------------------------------------------------------------------------- | -------------------- | ----------------------------------------- |
+| [Adler32](https://en.wikipedia.org/wiki/Adler-32)                                     | Non-cryptographic    | 131                                       |
+| [Crc32](https://en.wikipedia.org/wiki/Cyclic_redundancy_check)                        | Non-cryptographic    | 779                                       |
+| [Fnv1a32](https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function) | Non-cryptographic    | 442                                       |
+| [Fnv1a64](https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function) | Non-cryptographic    | 425                                       |
+| [MD4](https://en.wikipedia.org/wiki/MD4)                                              | Cryptographic (weak) | 450                                       |
+| [MD5](https://en.wikipedia.org/wiki/MD5)                                              | Cryptographic (weak) | 759                                       |
+| [Murmur3x64_128](https://en.wikipedia.org/wiki/MurmurHash)                            | Non-cryptographic    | 68 _(default)_                            |
+| [SHA1](https://en.wikipedia.org/wiki/SHA-1)                                           | Cryptographic (weak) | 575                                       |
+| [SHA256](https://en.wikipedia.org/wiki/SHA-2)                                         | Cryptographic        | 232                                       |
+| [SHA384](https://en.wikipedia.org/wiki/SHA-2)                                         | Cryptographic        | 695                                       |
+| [SHA512](https://en.wikipedia.org/wiki/SHA-2)                                         | Cryptographic        | 685                                       |
+| [Xor64](https://en.wikipedia.org/wiki/XOR_cipher)                                     | Non-cryptographic    | 23                                        |
 
-The default algorithm is Murmur3x64_128. This is not a cryptographic checksum algorithm, but it
-is very fast and has good distribution properties. It is suitable for detecting changes to files.
+> **Note:** Benchmark values are relative times measured on a single machine. They are
+> useful for comparing algorithms to each other, not as absolute performance numbers.
 
-For security-sensitive applications, you should select a cryptographic hash algorithm such as SHA256
-or SHA512 using the `-a` option.
+The default algorithm is **Murmur3x64_128**. This is not a cryptographic hash, but it
+is very fast and has good distribution properties. It is suitable for detecting changes
+to files.
+
+For security-sensitive applications, use a cryptographic hash algorithm such as SHA256
+or SHA512, e.g. `-a sha256`.
+
+> **Note:** The Xor64 algorithm is extremely fast but is very weak. It is not recommended
+> for general use but may be useful for benchmarking, i.e. for measuring I/O overhead
+> against time spent computing the actual checksum.
 
 ## Examples
 
@@ -175,6 +289,13 @@ Checksum algorithm options, along with a benchmark time (smaller is faster):
     -a SHA512           685
     -a Xor64             23
 ```
+
+## Contributing
+
+Contributions are welcome! Please
+[open an issue](https://github.com/idigdoug/CheckSums/issues) to report bugs or
+suggest features, or submit a
+[pull request](https://github.com/idigdoug/CheckSums/pulls).
 
 ## License
 
