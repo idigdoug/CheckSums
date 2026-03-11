@@ -7,7 +7,9 @@
 #include <LineReader.h>
 #include <Utility.h>
 
-static volatile void const* g_pCopyByte;
+volatile void const* g_pCopyByte;
+volatile bool g_breakOnFound = true;
+volatile bool g_breakOnOther = true;
 
 struct UnmapViewOfFile_delete
 {
@@ -281,6 +283,10 @@ CheckListFile(
                 knownGoodPath.c_str(),
                 localHr);
             hr = localHr;
+            if (g_breakOnOther)
+            {
+                __debugbreak();
+            }
             continue;
         }
 
@@ -290,6 +296,10 @@ CheckListFile(
                 filename,
                 knownGoodFile.Size,
                 copyFile.Size);
+            if (g_breakOnOther)
+            {
+                __debugbreak();
+            }
             continue;
         }
 
@@ -309,8 +319,12 @@ CheckListFile(
                     offset,
                     *pKnownGoodByte,
                     *pCopyByte,
-                    pCopyByte);
+                    g_pCopyByte);
                 foundMismatch = true;
+                if (g_breakOnFound)
+                {
+                    __debugbreak();
+                }
             }
         }
 
@@ -319,6 +333,10 @@ CheckListFile(
             LogWarning(listFileName, lineReader.LineNumber(),
                 "Hash mismatch but content matches for file '%ls' ???",
                 filename);
+            if (g_breakOnOther)
+            {
+                __debugbreak();
+            }
         }
     }
 
@@ -349,14 +367,43 @@ wmain(int argc, _In_count_(argc) PWSTR argv[])
 
     try
     {
-        if (argc != 4)
+        if (argc != 6)
         {
-            fprintf(stderr, "Usage: %ls ListFile.txt KnownGoodDir CopyDir\n", argv[0]);
+            fprintf(stderr, R"(
+Usage: %ls ListFile.txt KnownGoodDir CopyDir BreakOnFound BreakOnOther
+
+Operation:
+
+- Reads the ListFile.txt, which should contain lines of the form:
+  <Hex MurMur3 expected hash value> <whitespace> <filename>
+- For each line, computes the MurMur3 hash of the file with the given name
+  under CopyDir and compares it to the expected hash value.
+- If the hash value does not match, compares the file to the file with the
+  same name under KnownGoodDir.
+  - Logs the address(es) of the difference(s).
+  - If BreakOnFound is nonzero, DebugBreak() when an address of a difference
+    is found.
+  - If BreakOnOther is nonzero, DebugBreak() when any other difference is
+    found, e.g. if the known-good file cannot be opened, if a size difference
+    is found, or if no differences are found despite a hash mismatch.
+)", argv[0]);
             hr = 1;
             goto Done;
         }
 
         auto const hashListFileName = argv[1];
+        auto const pKnownGoodDir = argv[2];
+        auto const pCopyDir = argv[3];
+        g_breakOnFound = _wtoi(argv[4]) != 0;
+        g_breakOnOther = _wtoi(argv[5]) != 0;
+
+        fprintf(stderr, "BreakOnFound=%u, BreakOnOther=%u, ListFile=%ls, KnownGoodDir=%ls, CopyDir=%ls\n",
+            g_breakOnFound,
+            g_breakOnOther,
+            hashListFileName,
+            pKnownGoodDir,
+            pCopyDir);
+
         auto const hashListFile = FopenTextInputWithLogging(hashListFileName);
         if (!hashListFile)
         {
@@ -367,8 +414,8 @@ wmain(int argc, _In_count_(argc) PWSTR argv[])
         hr = CheckListFile(
             hashListFileName,
             hashListFile.get(),
-            argv[2],
-            argv[3]);
+            pKnownGoodDir,
+            pCopyDir);
     }
     catch (HrException const& ex)
     {
